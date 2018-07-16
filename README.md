@@ -1,8 +1,8 @@
 ##sdvx
 
 #To Do
-손처리 좌우 판별 (done)
-벡터 도입
+손처리 좌우 판별 후 벡터 도입
+채보 분석 (Lv.17~)
 
 
 #손교차곡 list (add more please)
@@ -21,10 +21,10 @@ Success! by Pure Luck
 
 
 #idea bank
-짧은 벡터가 많을수록 밀집해있다
-벡터 길이가 일정 이상 되면, 무효화. '손을 떼고 있어도 무방'
+1.짧은 벡터가 많을수록 밀집해있다
+1-1.벡터 길이가 일정 이상 되면, 무효화. '손을 떼고 있어도 무방'
 
-'규칙도 함수' 구현 시도
+2.'규칙도 함수' 구현 시도
 OBJECTIVE: (knob)
 LLLLLLLL -> regular
 RRRRRRRR -> regular
@@ -40,4 +40,9 @@ RL -> RL
 맞으면 1, 틀리면 0
 평균 0.8(arbitary number) 이하면 'irregular'으로 판정 
 
+3.노브 돌리는 각도. 대(large)마디당 각도 몇
+
+4.Pattern Library
 ##popn
+muang: "image segmentation using graph cut algorithms"의 키워드로
+채보 이미지 파일로부터 마디 이미지를 자동으로 crop하는 module을 얻을 수 있을 것으로 예상함.
