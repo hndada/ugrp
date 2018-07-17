@@ -1,9 +1,12 @@
 ##sdvx
 
 #To Do
-손처리 좌우 판별 후 벡터 도입
+손처리 좌우 판별
+@@직각 끝부분 무시처리
 채보 분석 (Lv.17~)
-
+벡터 계산
+노브는 '각도'로 다루기
+(추후)SV
 
 #손교차곡 list (add more please)
 Lv18 Juggler's Madness
@@ -43,6 +46,14 @@ RL -> RL
 3.노브 돌리는 각도. 대(large)마디당 각도 몇
 
 4.Pattern Library
+
+5.기교 레벨에 따라서 변화하는 손배치
+5-1.FX-L,R & BT2,3 can be hit with one hand (#Endroll no.07 no.01~)
+5-2.노브가 바쁘면 FX동시타는 한번에 처리 (#Endroll no.11)
+5-3.노브가 바쁘면 FX의 손이동을 최소화. (#Endroll last part)
+5-4.노트가 한쪽으로 쏠려있으면 두손으로 처리. (EMPIRE of FLAME no.27)
+그 외 이미 존재하는 기교 배치는 뻥튀기된 난이도를 조사하면서 추가
+
 ##popn
 muang: "image segmentation using graph cut algorithms"의 키워드로
 채보 이미지 파일로부터 마디 이미지를 자동으로 crop하는 module을 얻을 수 있을 것으로 예상함.
