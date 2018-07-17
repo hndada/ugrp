@@ -146,7 +146,8 @@ for i in range(len(data)):
 
 
 #결과값 출력
-f2=open("converted_"+sys.argv[1],"w",encoding="UTF8")
+
+f2=open("./ksh/vol_converted_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
 f2.writelines(data)
 f.close()
 f2.close()
