@@ -80,21 +80,23 @@ for i in range(tune):
 #노브있으나 홀드off이면 노브 손 기본값, 홀드를 반대손으로 처리
 #한번 홀드on하면 끝날때까지 손을 바꾸지 않음.
 
-holdon=0 #check if the hold is already on(active)
-holdside='N' #L/R: Left/Right   B:Both; also granted when other hand is free N:Nullity; something went wrong
+holdon=[0]*6 #check if the hold is already on(active)
+holdside=['N']*6 #L/R: Left/Right   B:Both; also granted when other hand is free N:Nullity; something went wrong
 knobon=0 #check if the knob is already on(active)
+#knobon=[0]*2 
 knobside='N'
+BTFX=[0,1,2,3,5,6]
+KNOB=[8,9]
 
-count_holdon=0
 def otherside(hand, side):
     if side=='L':
         return 'R'
     if side=='R':
         return 'L'
     if side=='B':
-        if hand in [0, 1, 5, 8]:
+        if hand in [0,1,5,8]:
             return 'R'
-        if hand in [2, 3, 6, 9]:
+        if hand in [2,3,6,9]:
             return 'L' 
     if side=='N':
         return 'N'
@@ -120,43 +122,40 @@ def check_code(mode, hand):
 f2=open("./ksh/directed_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
 f2.write('\n'.join(c_info)+'\n')
 
-for i in range(tune): #i: number of tunes
-    f2.write('--\n')
+for i in range(34,35): #i: number of tunes
+    f2.write("#"+str(i)+'-------\n')
     for j in range(notelist[i]+len(infolist[i])): #j: number of lines in a tune
         if(j not in infolist[i]): #c_cont[i][j]: 1111|00|--
             listline=list(c_cont[i][j])
+            #check the switches
+            if(any([holdon[x] for x in range(6)])):
+                for k in range(len(BTFX)):
+                    if listline[BTFX[k]]!=check_code('hold',k):
+                        holdon[k]=0
+                        holdside[k]='N'
+            if(knobon):
+                check_knob=[]
+                for x in KNOB:
+                    check_knob.append(listline[x] in ['-',':'])
+                if(all(check_knob)):
+                    knobon=0
+                    knobside='N'
+            #scan one line: 1111|00|--
             hand=8
             while(hand!=7):
-                if(holdon):
-                    check_hold=[]
-                    for x in [0,1,2,3,5,6]:
-                        check_hold.append(listline[x]!=check_code('hold',x))
-                    if(all(check_hold)):
-                        holdon=0
-                        count_holdon+=1
-                if(knobon):
-                    check_knob=[]
-                    for x in [8,9]:
-                        check_knob.append(listline[x] in ['-',':'])
-                    if(all(check_knob)):
-                        knobon=0
-                """ #dunno which part is syntax error
-                if(holdon):
-                    holdon=0 if(all([listline[x]!=check_code('hold',x) for x in [0,1,2,3,5,6]]))
-                if(knobon):
-                    knobon=0 if(all(listline[x] in ['-',':'] for x in [8,9]))
-                """
-                if(hand in [8,9]):
+                if(hand in KNOB):
                     if (listline[hand] not in ['-',':']):
-                        if(holdon):
-                            listline[hand]=otherside(hand, holdside)
+                        for k in range(6):
+                            if holdon[k]:
+                                listline[hand]=otherside(BTFX[k], holdside[k])
+                                break
                         else:
                             listline[hand]=side(hand)
                         knobon=1
                         knobside=listline[hand]
                     else:
                         listline[hand]=' '
-                if(hand in [0,1,2,3,5,6]):
+                if(hand in BTFX):
                     if (listline[hand]!='0'):
                         if(listline[hand]==check_code('chip', hand)):
                             if(knobon):
@@ -167,14 +166,16 @@ for i in range(tune): #i: number of tunes
                             if(knobon):
                                 listline[hand]=otherside(hand, knobside)
                             else:
-                                if(listline[8] not in ['-',':']):
-                                    listline[hand]=otherside(8,side(8))
-                                elif(listline[9] not in ['-',':']):
-                                    listline[hand]=otherside(9,side(9))
+                                for x in KNOB:
+                                    if(listline[x] not in ['-',':',' ']): #if(listline[8]!=' '):
+                                        listline[hand]=otherside(x,side(x))
                                 else:
-                                    listline[hand]=side(hand)
-                                holdon=1
-                                holdside=listline[hand]
+                                    if(holdon[BTFX.index(hand)]):
+                                        listline[hand]=holdside[BTFX.index(hand)]
+                                    else:
+                                        listline[hand]=side(hand)
+                            holdon[BTFX.index(hand)]=1
+                            holdside[BTFX.index(hand)]=listline[hand]
                     else:
                         listline[hand]=' '
                 hand+=1
@@ -184,4 +185,3 @@ for i in range(tune): #i: number of tunes
         else:
             f2.write(c_cont[i][j]+'\n')
 f2.close()
-#print(count_holdon)
