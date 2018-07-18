@@ -1,27 +1,22 @@
 ##sdvx
 
 #To Do
-손처리 좌우 판별
-@@홀드는 첫번째 이후 소문자로 표기
 채보 분석 (Lv.17~)
+(v)손처리 좌우 판별
+@@홀드는 첫번째 이후 소문자로 표기
 벡터 계산
 노브는 '각도'로 다루기
 (추후)SV
 
+
 #손교차곡 list (add more please)
 Lv18 Juggler's Madness
-
 Lv18 #Endroll (needs lots of trial and error)
 (no.65~72) (약간 어색할 것으로 예상.)
 (no.73~76)
 (no.77~80: 손교차가 아니나 현 알고리즘으로는 복잡한 손배치가 구현됨)
-
 Lv20 I (no.65~71) 
-:difficult to determine L/R automatically. will just try manually
-
 Lv19 Staring at Star (no.34) 
-Success! by Pure Luck
-
 
 #idea bank
 1.짧은 벡터가 많을수록 밀집해있다
@@ -55,9 +50,7 @@ RL -> RL
 5-2.노브가 바쁘면 FX동시타는 한번에 처리 (#Endroll no.11)
 5-3.노브가 바쁘면 FX의 손이동을 최소화. (#Endroll last part)
 5-4.노트가 한쪽으로 쏠려있으면 두손으로 처리. (EMPIRE of FLAME no.27)
-
 그 외 이미 존재하는 기교 배치는 뻥튀기된 난이도를 조사하면서 추가
-
 
 ##popn
 muang: "image segmentation using graph cut algorithms"의 키워드로
