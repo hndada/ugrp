@@ -88,6 +88,9 @@ knobside='N'
 BTFX=[0,1,2,3,5,6]
 KNOB=[8,9]
 
+#BTFX, KNOB: hand-wise
+#holdon, holdside: numeric-wise
+
 def otherside(hand, side):
     if side=='L':
         return 'R'
@@ -122,7 +125,7 @@ def check_code(mode, hand):
 f2=open("./ksh/directed_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
 f2.write('\n'.join(c_info)+'\n')
 
-for i in range(34,35): #i: number of tunes
+for i in range(34,tune): #i: number of tunes
     f2.write("#"+str(i)+'-------\n')
     for j in range(notelist[i]+len(infolist[i])): #j: number of lines in a tune
         if(j not in infolist[i]): #c_cont[i][j]: 1111|00|--
@@ -130,17 +133,16 @@ for i in range(34,35): #i: number of tunes
             #check the switches
             if(any([holdon[x] for x in range(6)])):
                 for k in range(len(BTFX)):
-                    if listline[BTFX[k]]!=check_code('hold',k):
+                    if listline[BTFX[k]]!=check_code('hold',BTFX[k]):
                         holdon[k]=0
                         holdside[k]='N'
             if(knobon):
-                check_knob=[]
-                for x in KNOB:
-                    check_knob.append(listline[x] in ['-',':'])
-                if(all(check_knob)):
+                if(all([listline[x] in ['-',':'] for x in KNOB])):
+                    #print(j,"knobon off")
                     knobon=0
                     knobside='N'
             #scan one line: 1111|00|--
+            #print('@while_start', j, holdside, holdon)
             hand=8
             while(hand!=7):
                 if(hand in KNOB):
@@ -168,11 +170,16 @@ for i in range(34,35): #i: number of tunes
                             else:
                                 for x in KNOB:
                                     if(listline[x] not in ['-',':',' ']): #if(listline[8]!=' '):
+                                        #print(hand, 'knob')
                                         listline[hand]=otherside(x,side(x))
                                 else:
                                     if(holdon[BTFX.index(hand)]):
+                                        #print(hand, 'holdon')
                                         listline[hand]=holdside[BTFX.index(hand)]
                                     else:
+                                        #print(hand, 'side')
+                                        #print(BTFX.index(hand), 'side')
+                                        #print(holdon[BTFX.index(hand)]==1)
                                         listline[hand]=side(hand)
                             holdon[BTFX.index(hand)]=1
                             holdside[BTFX.index(hand)]=listline[hand]
@@ -181,6 +188,7 @@ for i in range(34,35): #i: number of tunes
                 hand+=1
                 if hand==10:
                     hand=0
+            #print('@while_end  ', j, holdside, holdon)
             f2.writelines(''.join(listline)+'\n')
         else:
             f2.write(c_cont[i][j]+'\n')
