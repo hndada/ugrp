@@ -1,14 +1,32 @@
 
-#I. Check L or R
+#DetLR.py
+#Author: hndada (hndada@dgist.ac.kr)
+
 """
-1. basically, Left side including knob-L and BT 1,2 and FX-L are 'L'
-and totally same at the other side but 'R'
-2. all is L when knob-R is activated except "stay knob", vice versa.
-3-1. a.k.a. particular hand position: "hand-crossing(손교차)'
-->only when one of knob is "stay"
-3-2.'more easy hand position if one use his or her "technical skill"
-(기교를 써서 더 쉬운 손배치가 가능한 경우 -> HEAVENLY SMILE MXM)' 
+Determine which hand to hit with, as every valid sign
+##Rule
+1. Basically, determine 'L' if an object locates left side: knob-L, BT-A, BT-B, FX-L, vice versa.
+2. if an active 'knob' object and 'chip' objects are appeared at the same time, 
+the knob object gets its normal direction and chip objects gets the other side.
+3. if an active 'knob' object and 'hold' objects are appeared at the same time, there's two case possible.
+3-1. when the object is 'first tick' (which means knob and hold start at the same time), 
+the knob object gets its normal direction and hold objects gets the other side, like Rule #2.
+3-2. when the object is not 'first tick' (which means the hold objects already last before knob start),
+hold objects gets its determined direction at first tick, and knob objects gets the other side.
+4. Players could use their 'technical skills' to use hand placement easier than the one determined by simple hand placement rules 
+
+cf) An 'active knob' means all knobs, except static knobs aka 'parking knobs'
 """
+#현재 라인에 노브가 있는지 확인.
+#칩노트: 결과적으로 노브가 무조건 우선시.
+#노브없으면 기본값으로 배정 (현재 '기교' 적용 없음)
+#노브있으면, 노브의 반댓손으로 처리.
+
+#홀드노트: 기존에 있는 걸 우선시함.
+#동시에 있는 경우 노브 > 홀드 > 칩. 노브와 홀드가 동시에 같은 손으로 처리되지 않는것을 원칙으로 한다.
+#노브있으나 홀드on이면 홀드 손 유지. 노브를 반대손으로 처리
+#노브있으나 홀드off이면(즉, 동시에 시작함) 노브 손 기본값, 홀드를 반대손으로 처리
+#한번 홀드on하면 끝날때까지 손을 바꾸지 않음.
 
 #duplicated code start
 import sys
@@ -67,27 +85,13 @@ for i in range(tune):
 #print(infolist)
 
 #duplicated code end 
-#3.(심화): 주차가 2개의 소마디 이상으로 진행되면 '조작없음'으로 판단. or 그냥 주차는 조작없음으로.
-
-#현재 라인에 노브가 있는지 확인.
-#칩노트: 결과적으로 노브가 무조건 우선시.
-#노브없으면 기본값으로 배정 (현재 기교 무시)
-#노브있으면, 노브의 반댓손으로 처리.
-
-#홀드노트: 기존에 있는 걸 우선시함.
-#동시에 나올 경우 노브 > 홀드 > 칩. 노브와 홀드가 동시에 같은 손으로 처리되지 않는것을 원칙으로 한다. (counting)
-#노브있으나 홀드on이면 홀드 손 유지. 노브를 반대손으로 처리
-#노브있으나 홀드off이면 노브 손 기본값, 홀드를 반대손으로 처리
-#한번 홀드on하면 끝날때까지 손을 바꾸지 않음.
 
 holdon=[0]*6 #check if the hold is already on(active)
 holdside=['N']*6 #L/R: Left/Right   B:Both; also granted when other hand is free N:Nullity; something went wrong
 knobon=0 #check if the knob is already on(active)
-#knobon=[0]*2 
 knobside='N'
 BTFX=[0,1,2,3,5,6]
 KNOB=[8,9]
-
 #BTFX, KNOB: hand-wise
 #holdon, holdside: numeric-wise
 
@@ -125,7 +129,7 @@ def check_code(mode, hand):
 f2=open("./ksh/directed_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
 f2.write('\n'.join(c_info)+'\n')
 
-for i in range(34,tune): #i: number of tunes
+for i in range(tune): #i: number of tunes
     f2.write("#"+str(i)+'-------\n')
     for j in range(notelist[i]+len(infolist[i])): #j: number of lines in a tune
         if(j not in infolist[i]): #c_cont[i][j]: 1111|00|--
@@ -138,11 +142,9 @@ for i in range(34,tune): #i: number of tunes
                         holdside[k]='N'
             if(knobon):
                 if(all([listline[x] in ['-',':'] for x in KNOB])):
-                    #print(j,"knobon off")
                     knobon=0
                     knobside='N'
             #scan one line: 1111|00|--
-            #print('@while_start', j, holdside, holdon)
             hand=8
             while(hand!=7):
                 if(hand in KNOB):
@@ -170,16 +172,11 @@ for i in range(34,tune): #i: number of tunes
                             else:
                                 for x in KNOB:
                                     if(listline[x] not in ['-',':',' ']): #if(listline[8]!=' '):
-                                        #print(hand, 'knob')
                                         listline[hand]=otherside(x,side(x))
                                 else:
                                     if(holdon[BTFX.index(hand)]):
-                                        #print(hand, 'holdon')
                                         listline[hand]=holdside[BTFX.index(hand)]
                                     else:
-                                        #print(hand, 'side')
-                                        #print(BTFX.index(hand), 'side')
-                                        #print(holdon[BTFX.index(hand)]==1)
                                         listline[hand]=side(hand)
                             holdon[BTFX.index(hand)]=1
                             holdside[BTFX.index(hand)]=listline[hand]
@@ -188,7 +185,6 @@ for i in range(34,tune): #i: number of tunes
                 hand+=1
                 if hand==10:
                     hand=0
-            #print('@while_end  ', j, holdside, holdon)
             f2.writelines(''.join(listline)+'\n')
         else:
             f2.write(c_cont[i][j]+'\n')
