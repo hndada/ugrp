@@ -1,5 +1,5 @@
 
-#DetLR.py
+#detLR.py
 #Author: hndada (hndada@dgist.ac.kr)
 
 """
