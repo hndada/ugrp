@@ -8,16 +8,6 @@
 노브는 '각도'로 다루기
 (추후)SV
 
-
-#손교차곡 list (add more please)
-Lv18 Juggler's Madness
-Lv18 #Endroll (needs lots of trial and error)
-(no.65~72) (약간 어색할 것으로 예상.)
-(no.73~76)
-(no.77~80: 손교차가 아니나 현 알고리즘으로는 복잡한 손배치가 구현됨)
-Lv20 I (no.65~71) 
-Lv19 Staring at Star (no.34) 
-
 #idea bank
 1.짧은 벡터가 많을수록 밀집해있다
 1-1.벡터 길이가 일정 이상 되면, 무효화. '손을 떼고 있어도 무방'
