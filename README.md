@@ -42,6 +42,12 @@ RL -> RL
 5-4.노트가 한쪽으로 쏠려있으면 두손으로 처리. (EMPIRE of FLAME no.27)
 그 외 이미 존재하는 기교 배치는 뻥튀기된 난이도를 조사하면서 추가
 
+6. 엇박 난이도 가중치 idea
+클리어 난이도의 경우 판정범위 'ERROR' 넘어가는 경우, 즉 뭉개면 안될 때
+가상의 틱 추가, 밀도 계산 with 0.5(arbitrary) multiplier
+판정범위 이내의 경우 동시타로 처리 (즈레뻥튀기방지)
+-> 퍼펙트 난이도면 'NEAR' 범위로. with some multiplier
+
 ##popn
 muang: "image segmentation using graph cut algorithms"의 키워드로
 채보 이미지 파일로부터 마디 이미지를 자동으로 crop하는 module을 얻을 수 있을 것으로 예상함.
