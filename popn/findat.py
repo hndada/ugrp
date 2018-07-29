@@ -1,6 +1,6 @@
 import numpy as np
 
-FILENAME="007-1"
+FILENAME="004-1"
 BPM=165
 
 f=open(FILENAME+".txt","r")
@@ -47,51 +47,75 @@ def lstand(p,q): ##둘다존재
 ##트릴##
 
 '''
-
-f2.print("트릴: ")
-
-trlchk1=[0,0,0,0,0,0,0,0,0] #트릴 첫번째 모양
-trlchk2=[0,0,0,0,0,0,0,0,0] #트릴 두번째 모양
-
-def lstand(p,q): ##둘다존재
-    retv=[]
-    for i in range(9):
-        retv.append(p[i]&q[i])
-    return retv
+1)정박트릴
+2)변박트릴
+전부 고려해야됨. (난이도요소)
 
 
-def printtrill(l1, l2, v):
-    
-    f2.print("".join(l1) + " 하고 " + "".join(l2) " 트릴이 " + str(v) "회 반복된다\n") 
+알고리즘:
+예시: 004.png
+
+1. (1,2) (1,3) .... (7,9) (8,9) 의 라인만 체크한다
+2. 두 개가 반복될시 일단 트릴 속성 간주
+
+2-1. 123/456과 135/246의 트릴같은 경우 다른 속성으로 간주
 
 
-loopcnt=0
+'''
 
-for loop1 in range(len(data)):
-    tmp=txt2lst(loop1)
-    whichone=loop1%2 ##두개로 나누기 위함
-    if whichone==0:
-        trltmp=lstand(trlchk1,tmp) # 전전 데이터와 비교
-        ##0이 아닐 경우는 개수 계속 체크
-        ##0일 경우는 트릴체크 끝내고 다시 시작
-        if sum(trltmp)==0:
-            if loopcnt>=4:
-                printtrill(trlchk1, trlchk2, loopcnt)    
-            loopcnt=0
-            trlchk1=tmp
-        else:
-            loopcnt+=1
-            
-    else:
-        trltmp=lstand(trlchk2,tmp)
-        if sum(trltmp)==0:
-            print(loopcnt)
-            loopcnt=0
-            trlchk2=tmp
-        else:
+trilltable=[[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0]]
+#ㄴ 트릴체크후 시간저장용. 사실상 0간격의 트릴은 존재X
 
-''' #오류발견으로 작업 스탑
-    
+trill1=0 #트릴체크1
+trill2=1 #트릴체크2
+
+
+for trill1 in range(9):
+    for trill2 in range(9):
+        if trill1==trill2: #같은건 배제
+            continue
+        timeval=0 #시간간격 체크용 (트릴 중간에 다른노트 데이터가 있어도 트릴 간주)
+        notecnt=0 # 4 이상시 트릴
+        for loop in range(len(data)):
+            timeval+=datatime[loop] #다음노트까지 걸린시간 (노트발견시 초기화)
+            if timeval > 10: #10 내에 없으면 (임의의 값)
+                if notecnt>=4: #4번 이상(트릴)이후 없는거면
+                    tmpval=trilltable[trill1][trill2]
+                    if tmpval>=4: #기존에 그트릴이 있다면
+                        trilltable[trill1][trill2]+=notecnt #더함 (1212 트릴치다 쉬다 1212트릴나오면 일단은 연속 간주. ###추후 의견나눌예정)
+                    else: #없다면 (노트 하나, 두개같이 작은거)
+                        trilltable[trill1][trill2]=notecnt #트릴사이즈
+                notecnt=0 #지금까지 센거 초기화
+                timeval=0
+            if notecnt%2==0: #트릴1
+                if data[loop][trill1]!='0' and timeval < 10: #10 내에 치면 (임의의 값, 수정예정)
+                    timeval=0 #시간간격초기화 (다음노트찾기 시작)
+                    notecnt+=1 #노트수 추가
+                else:
+                    continue #loop 계속돔
+            else: #트릴2
+                if data[loop][trill2]!='0' and timeval < 10:
+                    timeval=0
+                    notecnt+=1
+                else:
+                    continue
+        #loop이 끝남
+        tmpval2=trilltable[trill1][trill2]
+        if tmpval2>=4: #기존에 그트릴이 있다면
+            trilltable[trill1][trill2]+=notecnt #더함 (1212 트릴치다 쉬다 1212트릴나오면 일단은 연속 간주. ###추후 의견나눌예정)
+        else: #없다면 (노트 하나, 두개같이 작은거)
+            trilltable[trill1][trill2]=notecnt #트릴사이즈
+                
+#트릴table에 저장이 끝난 후엔
+for loop1 in range(9):
+    for loop2 in range(9):
+        if trilltable[loop1][loop2]>=4: #트릴사이즈
+            whichbig=trilltable[loop1][loop2] #뭐가 더 크냐 (535353트릴의 경우 5 기준이며 6개짜리 3 기준이면 5개짜리 판별)
+            if whichbig<trilltable[loop2][loop1]:
+                whichbig=trilltable[loop2][loop1]
+            f2.write("트릴\n"+str(loop1)+','+str(loop2)+'번 트릴이 '+str(whichbig)+'번만큼 반복\n')
+            trilltable[loop1][loop2]=trilltable[loop2][loop1]=0
+
 
 
 
