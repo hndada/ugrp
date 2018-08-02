@@ -1,0 +1,38 @@
+sp=[,,"#Od4Eu","#XoEAQAQ4r","#QIG2EI","#Q4r","#OiwBd","#X4EAQAg4I","#Q4G2EI","#OoB4g","88","44","22","#OXrjR6AA","#Of/bb7AA","#OW2kk6AA","#ONtJJ5AA","#OXrsa4AA","#OI4Z4","#XIA4AoI4G4AA","#XII4AALoAQgH","#X0ErDiCZB","#O4oPo","#XQ4oAY4oC7AA","#OnoHYQ4F","#XQHA4NFYQB/","#XPGApgDAh","#XfGBpUDBp","#XfGBogDBY","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBg","#Or+jq","#OIYhY_","#OIYxY5AA","#OJYBf7AA","#OJYJYQ1l","#XwBAQDAgy_","#O56jl","#OJYJYQwF","#XIBAIOGgQ7AA","#XIBAQCArrXoFAwGAAA","#XIBAIBGYY7AA","#XQCAQHQgg","#XoFAoFCoo","#Oxd60","#XIB4YD4II_","#XrD4NFFQQ","#odoUgB+","#Opd9Z","#OgAD8_","#X4FAIAQA0","#OwNHG","#qsa4Fo","#OwLqn","#qbG","#O9Z0V","#OKccu","#OIYBY7AA_","#XOAYAvIYA4AA","#OJYpY6AA","#XIIYDIIYABn","#XIAoBY4oA7AA","#XU4oBY4oT7AA","#OnoHIQ4F","#X0ErDiCZB","#XvGApgDAh","#XfGBpmDBp","#XfGBogDBo","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBQ","#XgI4wogei","#OL8Ur5AA","#OM0fi5DA","#OMaviQwG","#OL5VjB2","#XQI4YQg1j6AA","#XQgwYI4sa","#XIoYQg41j","#XIBAINFgQX4HA44AAA","01"];}
+
+
+O  d  4  E  u
+4F 64 34 45 75
+01001111 01100100 00110100 01000101 01110101
+???
+>> don't need to decode data - just put into machine
+>> how? put random 50 bars to input layer w/ some encoding
+
+
+>> how to gather data?
+//find data from view-source:http://textage.cc/score/titletbl.js
+//find difficulty from view-source:http://textage.cc/score/actbl.js
+
+after .html?
+1N100
+> first digit = single / double
+> second digit = [Normal], [H]yper, [A]nother
+> third digit = level 123456789ABC
+> fourth digit = height 0~
+> fifth digit = bar cut; 0 = 4 bar; else = setted
+1N100R0567123401234567 > Random
+if(char2=="X"){a=1;kuro=1;}
+if(char2=="A")a=1;
+if(char2=="L")l=1;
+if(char2=="N"){l=1;hps=1;}
+if(char2=="H")hps=1;
+if(char2=="B"){l=1;g=1;}
+if(char2=="G" || char2=="R"){l=1;hps=1;g=1;}
+if(char2=="P"){l=1;hps=1;pty=1;g=1;}
+if(char1=="1")sides[1]=1;
+if(char1=="D"){k=0;key=14;}
+if(char1=="L"){k=0;key=14;os=1;sides[1]=1;}
+if(char1=="R"){k=0;key=14;os=2;}
+if(char1=="F"){flp=1;k=0;key=14;}
+if(char1=="M"){m=1;k=0;key=14;}
+if(char1=="B"){db=1;key=14;}
