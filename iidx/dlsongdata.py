@@ -3,9 +3,12 @@ import js2py
 
 
 http = urllib3.PoolManager()
-raw = http.request('GET', "http://textage.cc/score/25/aa_rebld.html")
-raw = raw.data.decode("utf-8").split('\n')
-scr = """gap=0;
+# raw = http.request('GET', "http://textage.cc/score/25/aa_rebld.html")
+raw = http.request('GET', "http://textage.cc/score/20/_ongaku.html")
+raw = raw.data.decode("shift_jis").split('\n')
+scr = """
+function ar(){let sp = new Array();let tc= new Array();
+gap=0;
 ln=0;
 k=1;
 l=0;
@@ -44,11 +47,11 @@ for line in raw:
         scr_enable = False
     if scr_enable is True:
         scr+=line+"\n"
-funcstart = """function ar(){let sp = new Array();"""
-funcend = """return sp;}ar();"""
-result = js2py.eval_js(funcstart+scr+funcend)
-print(result)
+
 # print(scr)
+scr_end = """return [sp,tc,bpm];}ar();"""
+res = js2py.eval_js(scr+scr_end)
+print(res)
 
 
 # difficulty table
@@ -71,6 +74,7 @@ for line in file_diff.readlines():
     cur_diff[4] = diff[11] #SX
     # print(title, cur_diff)
 
+file_diff.close()
 
 
 # sheet data link
