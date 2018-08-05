@@ -1,5 +1,4 @@
 """
-0.Calculate notelist and a sum of tunes shortly
 1.DetermineKnobType (detk.py) (revised ver of ‘vol_change’)
 
 2.ExtendKSH (extksh.py)
@@ -33,32 +32,51 @@ for i in range(len(lsplit)):
         c_cont_all=lsplit[i:] # i ~ end
         break
 #print("chart info:", c_info)
-#print("chart content:", c_cont_all[:20])
+print("chart content:", c_cont_all[:20])
 
-#0. Calculate notelist and a sum of tunes shortly
-while(len(c_cont_all[-1])==0): #some empty newlines
-    del c_cont_all[-1]
-tune=c_cont_all.count('--')
-if c_cont_all[-1]=='--': #some empty tunes
-    tune-=1
-#print("tune@c_cont_all:", tune)
+"""
+c_cont_all
+c_cont_raw <-- need to be vanished out
+c_cont_all_k
+c_cont
+"""
+c_cont_raw=[] #tune would be increment 1 when displayed
+tune_raw=-1 #all charts start with '--'
+for i in range(len(c_cont_all)): #range(1:len(c_cont_all))
+    if(c_cont_all[i]=='--'): #new tune
+        tune_raw+=1
+        c_cont_raw.append([])
+    c_cont_raw[tune_raw].append(c_cont_all[i])
 
-colonindex=[i for i, line in enumerate(c_cont_all) if line=='--']
-tunesize=[colonindex[i+1]-colonindex[i] for i in range(len(colonindex)-1)]
-#print("colonindex:", colonindex)
-#print("tunesize:", tunesize)
-#print(len(colonindex), len(tunesize), tune)
+if (c_cont_raw[-1]==['--', '']): #delete null tune
+    del c_cont_raw[-1]
+    tune_raw-=1
+#planned to delete empty tunes in no use at the end of charts  
+#But there's a few cases that has true empty tune: 02-02053e
+#However, most of charts would be better that its first empty tune is deleted 
+
+#print(c_cont_raw[1])
+#print(c_cont_raw[-1])
+#print("tune:", tune)
+
+#print(c_cont_raw[2])
+#print(c_cont_raw[2][0])
+#format: c_cont_raw[#no. tune] 
+#len(c_cont_raw[tune])= 1+1 or 4 or 8+1, ...
+notelist=[]
 infolist=[]
-linecount=0
-for i in range(tune):
+for i in range(tune_raw):
     infolist.append([])
-    for j in range(tunesize[i]):
-        if '|' not in c_cont_all[linecount+j]:
+    noteline=len(c_cont_raw[i])
+    #print("noteline:", noteline)
+    for j in range(len(c_cont_raw[i])):
+        if(c_cont_raw[i][j][0] not in ['0','1','2']):
             infolist[i].append(j)
-    linecount+=tunesize[i]
-notelist=[tunesize[i]-len(infolist[i]) for i in range(len(tunesize))]
-#print("notelist:", notelist)
-#print("infolist:", infolist)
+            noteline-=1 
+    #print("i:",i, "noteline:", noteline)
+    notelist.append(noteline)
+#print(notelist)
+#print(infolist)
 
 #1. DetermineKnobType
 c_cont_all_k=[]
@@ -103,30 +121,30 @@ for line in c_cont_all:
         listline+=(['|']+listline[8:10])
     c_cont_all_k.append(''.join(listline))
 
+
+
 #print(c_cont_all[:30])
 #print(c_cont_all_k[:30])
-
-c_cont=[]
-linecount=0
-for i in range(tune):
-    c_cont.append([])
-    for j in range(tunesize[i]):
-        c_cont[i].append(c_cont_all_k[linecount+j])
-    linecount+=tunesize[i]
-
-#planned to delete empty tunes in no use at the first and last of charts  
-#meanwhile, there's a few cases that has true empty tune: 1st tune at 02-02053e
-#also, not simple. Need to move tune info to next or other tune.
-
-#print(c_cont[2])
-#print(c_cont[2][0])
-#format: c_cont[the tune]
-
 f1=open("./ksh/k_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
 f1.write('\n'.join(c_info)+'\n')
 for line in c_cont_all_k:
     f1.write(line+'\n')
 f1.close()
+
+c_cont=[]
+tune=-1
+for i in range(len(c_cont_all_k)): #range(1:len(c_cont_all))
+    if(c_cont_all_k[i]=='--'): #new tune
+        tune+=1
+        c_cont.append([])
+    c_cont[tune].append(c_cont_all_k[i])
+
+if (c_cont[-1]==['--', '']): #delete null tune
+    del c_cont[-1]
+    tune-=1
+#print(c_cont[2])
+
+
 
 #2. ExtendKSH
 f2_0=open("./ksh/e"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
