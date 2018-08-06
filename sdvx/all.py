@@ -1,8 +1,8 @@
 """
 0.Calculate notelist and a sum of tunes shortly
 1.DetermineKnobType (detk.py) (revised ver of ‘vol_change’)
+2.ExtendKSH (extksh.py) (nah just put a comma between two objects)
 
-2.ExtendKSH (extksh.py)
 3.CalculateKnobSpinQuantity (cckq.py)
 4.DetermineLR (lr.py) (detLR.py)
 5.AddTiming (time.py)
@@ -100,7 +100,7 @@ for line in c_cont_all:
         for LorR in range(8,10):
             listline[LorR]=newknoblist[LorR-8][line_idx]
         line_idx+=1
-        listline+=(['|']+listline[8:10])
+        #listline+=(['|']+listline[8:10])
     c_cont_all_k.append(''.join(listline))
 
 #print(c_cont_all[:30])
@@ -113,10 +113,11 @@ for i in range(tune):
     for j in range(tunesize[i]):
         c_cont[i].append(c_cont_all_k[linecount+j])
     linecount+=tunesize[i]
-
+"""
 #planned to delete empty tunes in no use at the first and last of charts  
 #meanwhile, there's a few cases that has true empty tune: 1st tune at 02-02053e
 #also, not simple. Need to move tune info to next or other tune.
+"""
 
 #print(c_cont[2])
 #print(c_cont[2][0])
@@ -129,18 +130,23 @@ for line in c_cont_all_k:
 f1.close()
 
 #2. ExtendKSH
-f2_0=open("./ksh/e"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
+f2_0=open("./ksh/ke_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
 for i in range(3,4): #i: number of tunes
     f2_0.write("#"+str(i+1)+'-------\n')
     for j in range(notelist[i]+len(infolist[i])): #j: the number of lines in a tune
         if(j not in infolist[i]): #c_cont[i][j]: 1111|00|--
-            listline=list(c_cont[i][j])
-            #print(listline)
-            #c_cont[i][j]+='|--|[0.0, 0.0]|0.0|[0.0, 0.0, 0.0, 0.0]|[0.0, 0.0]'
-
+            c_cont[i][j]+=(','+c_cont[i][j][8:10])
+            print(c_cont[i][j])
+            f2_0.write(c_cont[i][j]+'\n')
+f2_0.close()
 
 #3. CalculateKnobSpinQuantity
 knobcode='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno'
+
+#tune으로 다루면 안될거같음
+#hold나 knob나 tune 한정으로 안끝남
+#tune은 순전히 보조용으로. 
+
 
 #4. DetermineLR (formerly known as detLR.py)
 """
