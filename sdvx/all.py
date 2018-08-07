@@ -2,10 +2,11 @@
 0.Calculate notelist and a sum of tunes shortly
 1.DetermineKnobType (detk.py) (revised ver of ‘vol_change’)
 2.ExtendKSH (extksh.py) (nah just put a comma between two objects)
-
 3.CalculateKnobSpinQuantity (cckq.py)
+
 4.DetermineLR (lr.py) (detLR.py)
 5.AddTiming (time.py)
+
 6.CalculateHandCoordinates (cchc.py)
 7.CalculateHandDistance (cchd.py)
 7_5.(CalculateBPMratio)
@@ -15,6 +16,13 @@
 10.CalculateHandMoveSpeed (cchms.py)
 11.(CalculateLegibility)
 """
+
+"""
+notelist --> noteline_sum
+infolist --> infoline
+TRANSVERSE_FACTOR --> KNOB_TRANS
+"""
+
 import sys
 import re
 
@@ -23,55 +31,53 @@ file_content=fileobj.read() #file_content is 'str'
 fileobj.close()
 
 #split files
-#print(file_content)
 c_info=[]
-c_cont_all=[]
+cc=[]
 lsplit=re.split('\n+',file_content)
 for i in range(len(lsplit)):
     if (lsplit[i]=='--'):
         c_info=lsplit[:i] #0~i-1
-        c_cont_all=lsplit[i:] # i ~ end
+        cc=lsplit[i:] # i ~ end
         break
-#print("chart info:", c_info)
-#print("chart content:", c_cont_all[:20])
+#print("chart content:", cc[:20])
 
 #0. Calculate notelist and a sum of tunes shortly
-while(len(c_cont_all[-1])==0): #some empty newlines
-    del c_cont_all[-1]
-tune=c_cont_all.count('--')
-if c_cont_all[-1]=='--': #some empty tunes
-    tune-=1
-#print("tune@c_cont_all:", tune)
+while(len(cc[-1])==0): #some empty newlines
+    del cc[-1]
+tune_total=cc.count('--')
+if cc[-1]=='--': #some empty tunes
+    #no delete. it used to calculate
+    tune_total-=1
 
-colonindex=[i for i, line in enumerate(c_cont_all) if line=='--']
+colonindex=[i for i, line in enumerate(cc) if line=='--']
 tunesize=[colonindex[i+1]-colonindex[i] for i in range(len(colonindex)-1)]
 #print("colonindex:", colonindex)
 #print("tunesize:", tunesize)
-#print(len(colonindex), len(tunesize), tune)
+#print(len(colonindex), len(tunesize), tune_total)
 infolist=[]
 linecount=0
-for i in range(tune):
+for i in range(tune_total):
     infolist.append([])
     for j in range(tunesize[i]):
-        if '|' not in c_cont_all[linecount+j]:
+        if '|' not in cc[linecount+j]:
             infolist[i].append(j)
     linecount+=tunesize[i]
 notelist=[tunesize[i]-len(infolist[i]) for i in range(len(tunesize))]
+#print("tunesize:", tunesize)
 #print("notelist:", notelist)
 #print("infolist:", infolist)
 
 #1. DetermineKnobType
-c_cont_all_k=[]
 newknoblist=[]
 for LorR in range(8,10):
     prev='-'
     newknob=''
-    numtune=-1
+    tune=-1
     coloncount=0
-    for line in c_cont_all:
+    for line in cc:
         if '|' not in line: #not a noteline
             if line=='--':
-                numtune+=1
+                tune+=1
             continue
         if line[LorR]==':':
             coloncount+=1
@@ -79,7 +85,7 @@ for LorR in range(8,10):
             if prev!='-': #Determine
                 if line[LorR]==prev: #stay knob
                     newknob+='"'*coloncount
-                elif (notelist[numtune]/(coloncount+1))==32: #rect knob
+                elif (notelist[tune]/(coloncount+1))==32: #rect knob
                     newknob+='#'*coloncount 
                 else: #active line knob
                     newknob+=':'*coloncount 
@@ -93,77 +99,172 @@ for LorR in range(8,10):
     newknoblist.append(newknob)
     #print(newknob[:100])
 
-line_idx=0
-for line in c_cont_all:
-    listline=list(line)
-    if '|' in line: #noteline
+#replace
+i_noteline=0
+for i in range(len(cc)):
+    listline=list(cc[i])
+    if '|' in cc[i]: #noteline
         for LorR in range(8,10):
-            listline[LorR]=newknoblist[LorR-8][line_idx]
-        line_idx+=1
-        #listline+=(['|']+listline[8:10])
-    c_cont_all_k.append(''.join(listline))
+            listline[LorR]=newknoblist[LorR-8][i_noteline]
+        i_noteline+=1
+    cc[i]=''.join(listline)
 
-#print(c_cont_all[:30])
-#print(c_cont_all_k[:30])
-
-c_cont=[]
-linecount=0
-for i in range(tune):
-    c_cont.append([])
-    for j in range(tunesize[i]):
-        c_cont[i].append(c_cont_all_k[linecount+j])
-    linecount+=tunesize[i]
 """
 #planned to delete empty tunes in no use at the first and last of charts  
 #meanwhile, there's a few cases that has true empty tune: 1st tune at 02-02053e
 #also, not simple. Need to move tune info to next or other tune.
 """
 
-#print(c_cont[2])
-#print(c_cont[2][0])
-#format: c_cont[the tune]
-
-f1=open("./ksh/k_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
+f1=open("./ksh/1_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
 f1.write('\n'.join(c_info)+'\n')
-for line in c_cont_all_k:
+for line in cc:
     f1.write(line+'\n')
 f1.close()
 
 #2. ExtendKSH
-f2_0=open("./ksh/ke_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
-for i in range(3,4): #i: number of tunes
-    f2_0.write("#"+str(i+1)+'-------\n')
-    for j in range(notelist[i]+len(infolist[i])): #j: the number of lines in a tune
-        if(j not in infolist[i]): #c_cont[i][j]: 1111|00|--
-            c_cont[i][j]+=(','+c_cont[i][j][8:10])
-            print(c_cont[i][j])
-            f2_0.write(c_cont[i][j]+'\n')
-f2_0.close()
+f2=open("./ksh/2_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
+
+i=0 #line count
+tune=0
+while(tune!=tune_total):
+    for _ in range(tunesize[tune]):
+        if _ not in infolist[tune]:
+            cc[i]+=(','+cc[i][8:10])
+            f2.write(cc[i]+'\n')
+        else: #info
+            if cc[i]=='--':
+                f2.write("#"+str(tune+1)+'-------\n')
+            else:
+                f2.write(cc[i]+'\n')
+        i+=1
+    tune+=1
+f2.close()
 
 #3. CalculateKnobSpinQuantity
 knobcode='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno'
 
-#tune으로 다루면 안될거같음
-#hold나 knob나 tune 한정으로 안끝남
-#tune은 순전히 보조용으로. 
+#only for scaling
+#(knob_diff / tune_total)*TRANSVERSE_FACTOR = spin per tune 
+#default:1  
+TRANSVERSE_FACTOR=1 
 
+#Suppose that need to spin 1/8 of field width to hit rect knob
+#between 1/5 to 1/10 with the simulation
+CHOKKAKU=(len(knobcode)-1)/6
 
-#4. DetermineLR (formerly known as detLR.py)
+#float number format settings
+#default: DECIMAL = 2
+DECIMAL=2
+DIGIT=len(str( (len(knobcode)-1)*TRANSVERSE_FACTOR) )+2+DECIMAL
+
+newknoblist=[]
+for LorR in range(8,10):
+    # possible sign list: knobcode, - :" # 
+    i=0 #line count
+    tune=0 #initialization is so much critical
+    newknob=[] #list of float numbers
+    prev='-'
+    colon_count=[0] #not to delete last element of the list
+    rect_switch=0
+    tune_fraction=[]  
+    while(tune!=tune_total):
+        for _ in range(tunesize[tune]):
+            line=cc[i]
+            if _ not in infolist[tune]:
+                if line[LorR]=='-': #The empty sign at both 'righ before a knob starts' and 'right after a knob ends'
+                    prev='-'
+                    newknob.append(' '*DIGIT)
+                elif line[LorR] in ':"#':
+                    colon_count[-1]+=1
+                    if line[LorR]=='#':
+                        rect_switch=1 
+                else: #The letter
+                    if prev!='-': #End of the knob
+                        #add for last unit
+                        colon_count[-1]+=1 
+
+                        #make exact number of space to each tune
+                        for j in range(len(colon_count)):
+                            fraction=colon_count[j]/notelist[tune-(len(colon_count)-1)+j]
+                            tune_fraction.append(fraction)
+
+                        #calculate knob_diff
+                        knob_diff=knobcode.index(line[LorR])-knobcode.index(prev)
+                        if rect_switch:  
+                            #MG277: rect knob is treated as line knob in specific condition
+                            sign=lambda x: (1,-1)[x<0]
+                            knob_diff=sign(knob_diff)*CHOKKAKU
+                            rect_switch=0
+
+                        #calculate the amount of spin in each line
+                        knob_diff*=TRANSVERSE_FACTOR
+                        for j in range(len(colon_count)):
+                            knob_ratio=tune_fraction[j]/sum(tune_fraction)
+                            spin_line='{: {width}.{point}f}'.format(
+                                round(knob_diff*knob_ratio/colon_count[j], DECIMAL), width=DIGIT, point=DECIMAL)
+                            
+                            if float(spin_line)==0:
+                                spin_line=' '*DIGIT
+                            newknob+=[spin_line]*colon_count[j]
+                        
+                        #clean up
+                        colon_count=[0]
+                        tune_fraction=[]
+                    else: #Start of the knob
+                        newknob.append(' '*DIGIT)
+                    prev=line[LorR]
+                    """
+            else: #info
+                if cc[i]=='--':
+                    f2.write("#"+str(tune+1)+'-------\n')
+                else:
+                    f2.write(cc[i]+'\n')
+                    """
+            i+=1
+        if colon_count!=[0]: #toss
+            colon_count.append(0)
+        tune+=1
+    newknoblist.append(newknob.copy())
+
+#length test
+#print(len(newknoblist[0]))
+#print(len(cc),len(newknoblist[0])+sum([len(infolist[i]) for i in range(len(infolist))]))
+
+f3=open("./ksh/3_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
+#add
+tune=0
+i_noteline=0
+for i in range(len(cc)):
+    if '|' in cc[i]: #noteline
+        for LorR in range(8,10):
+            cc[i]+=','+newknoblist[LorR-8][i_noteline]
+        i_noteline+=1
+        f3.write(cc[i]+'\n')
+    else: #info
+        if cc[i]=='--':
+            f3.write("#"+str(tune+1-1)+'-------\n')
+            tune+=1
+        else:
+            f3.write(cc[i]+'\n')
+f3.close()
+
 """
-Determine which hand to hit with, as every valid sign
+#4. DetermineLR (formerly known as detLR.py)
+#English
+"""
+#Determine which hand to hit with, as every valid sign
 ##Rule
-1. Basically, determine 'L' if an object locates left side: knob-L, BT-A, BT-B, FX-L, vice versa.
-2. if an active 'knob' object and 'chip' objects are appeared at the same time, 
-the knob object gets its normal direction and chip objects gets the other side.
-3. if an active 'knob' object and 'hold' objects are appeared at the same time, there's two case possible.
-3-1. when the object is 'first tick' (which means knob and hold start at the same time), 
-the knob object gets its normal direction and hold objects gets the other side, like Rule #2.
-3-2. when the object is not 'first tick' (which means the hold objects already last before knob start),
-hold objects gets its determined direction at first tick, and knob objects gets the other side.
-4. Players could use their 'technical skills' to use hand placement easier than the one determined by simple hand placement rules 
--> 4번을 바로 적용.
-
-cf) An 'active knob' means all knobs, except static knobs aka 'parking knobs'
+#1. Basically, determine 'L' if an object locates left side: knob-L, BT-A, BT-B, FX-L, vice versa.
+#2. if an active 'knob' object and 'chip' objects are appeared at the same time, 
+#the knob object gets its normal direction and chip objects gets the other side.
+#3. if an active 'knob' object and 'hold' objects are appeared at the same time, there's two case possible.
+#3-1. when the object is 'first tick' (which means knob and hold start at the same time), 
+#the knob object gets its normal direction and hold objects gets the other side, like Rule #2.
+#3-2. when the object is not 'first tick' (which means the hold objects already last before knob start),
+#hold objects gets its determined direction at first tick, and knob objects gets the other side.
+#4. Players could use their 'technical skills' to use hand placement easier than the one determined by simple hand placement rules 
+#-> 4번을 바로 적용.
+#cf) An 'active knob' means all knobs, except static knobs aka 'parking knobs'
 """
 #Korean
 """
@@ -180,8 +281,8 @@ cf) An 'active knob' means all knobs, except static knobs aka 'parking knobs'
 #한번 홀드on하면 끝날때까지 손을 바꾸지 않음.
 """
 
-f2=open("./ksh/all_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
-f2.write('\n'.join(c_info)+'\n')
+f4=open("./ksh/4_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
+f4.write('\n'.join(c_info)+'\n')
 
 holdon=[0]*6 #check if the hold is already on(active)
 holdside=['N']*6 #L/R: Left/Right   B:Both; also granted when other hand is free N:Nullity; something went wrong
@@ -223,8 +324,7 @@ def check_code(mode, hand):
         if hand in [5,6]:
             return '1'
 
-for i in range(tune): #i: number of tunes
-    f2.write("#"+str(i)+'-------\n')
+for i in range(tune_total): #i: number of tunes
     for j in range(notelist[i]+len(infolist[i])): #j: the number of lines in a tune
         if(j not in infolist[i]): #c_cont[i][j]: 1111|00|--
             listline=list(c_cont[i][j])
@@ -279,8 +379,8 @@ for i in range(tune): #i: number of tunes
                 hand+=1
                 if hand==10:
                     hand=0
-            f2.writelines(''.join(listline)+'\n')
+            f4.write(''.join(listline)+'\n')
         else:
-            f2.write(c_cont[i][j]+'\n')
-
-f2.close()
+            f4.write(c_cont[i][j]+'\n')
+f4.close()
+"""
