@@ -1,26 +1,46 @@
 """
 0.Calculate notelist and a sum of tunes shortly
-1.DetermineKnobType (detk.py) (revised ver of ‘vol_change’)
-2.ExtendKSH (extksh.py) (nah just put a comma between two objects)
-3.CalculateKnobSpinQuantity (cckq.py)
+1.DetermineKnobType (revised ver of ‘vol_change’)
+2.ExtendKSH (nah just put a comma between two objects)
+3.CalculateKnobSpinQuantity (wow such haard)
 
-4.DetermineLR (lr.py) (detLR.py)
-5.AddTiming (time.py)
+4.DetermineLR (detLR.py)
+5.AddTiming (time.py) (BPM and tune size(except info) matters)
 
-6.CalculateHandCoordinates (cchc.py)
-7.CalculateHandDistance (cchd.py)
+5_5.CalculateHoldDecayed (with lowercase of LR and timing)
+6.CalculateHandCoordinates 
+7.CalculateHandDistance 
 7_5.(CalculateBPMratio)
 
-8.DivideToInterval (div.py)
-9.CalculateDensity (ccden.py)
-10.CalculateHandMoveSpeed (cchms.py)
+8.DivideToInterval 
+9.CalculateDensity 
+10.CalculateHandMoveSpeed 
 11.(CalculateLegibility)
 """
 
+#inaccurate rounding float number issue
+"""
+#1.makes float number to integer temporarily and divide
+#2.also, seems that we need 3 or more DECIMAL 
+""" 
+
+#naming issue
 """
 notelist --> noteline_sum
 infolist --> infoline
 TRANSVERSE_FACTOR --> KNOB_TRANS
+"""
+
+#tune+1-1 #way to treat empty first tune
+"""
+#planned to delete empty tunes in no use at the first and last of charts  
+#meanwhile, there's a few cases that has true empty tune: 1st tune at 02-02053e
+#also, not simple. Need to move tune info to next or other tune.
+"""
+
+## Advanced 
+"""
+1. Need to update DetermineLR gradually
 """
 
 import sys
@@ -36,24 +56,38 @@ cc=[]
 lsplit=re.split('\n+',file_content)
 for i in range(len(lsplit)):
     if (lsplit[i]=='--'):
-        c_info=lsplit[:i] #0~i-1
+        c_info=lsplit[:i] #0 ~ i-1
         cc=lsplit[i:] # i ~ end
         break
 #print("chart content:", cc[:20])
+
+#Generate a file proceeded to current stage
+def interim(stage):
+    filename='f'+str(stage)
+    filename=open("./ksh/"+str(stage)+"_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
+    filename.write('\n'.join(c_info)+'\n')
+    tune=0
+    for i in range(len(cc)):
+        if cc[i]=='--':
+            filename.write("#"+str(tune+1-1)+'-------\n')
+            tune+=1
+        else:
+            filename.write(cc[i]+'\n')
+    filename.close()
 
 #0. Calculate notelist and a sum of tunes shortly
 while(len(cc[-1])==0): #some empty newlines
     del cc[-1]
 tune_total=cc.count('--')
 if cc[-1]=='--': #some empty tunes
-    #no delete. it used to calculate
+    #not to delete cc[-1], it used to calculate
     tune_total-=1
 
-colonindex=[i for i, line in enumerate(cc) if line=='--']
-tunesize=[colonindex[i+1]-colonindex[i] for i in range(len(colonindex)-1)]
-#print("colonindex:", colonindex)
+dashindex=[i for i, line in enumerate(cc) if line=='--']
+tunesize=[dashindex[i+1]-dashindex[i] for i in range(len(dashindex)-1)]
+#print("dashindex:", dashindex)
 #print("tunesize:", tunesize)
-#print(len(colonindex), len(tunesize), tune_total)
+#print(len(dashindex), len(tunesize), tune_total)
 infolist=[]
 linecount=0
 for i in range(tune_total):
@@ -66,6 +100,7 @@ notelist=[tunesize[i]-len(infolist[i]) for i in range(len(tunesize))]
 #print("tunesize:", tunesize)
 #print("notelist:", notelist)
 #print("infolist:", infolist)
+
 
 #1. DetermineKnobType
 newknoblist=[]
@@ -91,10 +126,6 @@ for LorR in range(8,10):
                     newknob+=':'*coloncount 
             newknob+=line[LorR]
             prev=line[LorR]
-            """
-            if prev!='-' and prev not in knobcode:
-                print('exception occurred! knob:', prev)
-            """
             coloncount=0
     newknoblist.append(newknob)
     #print(newknob[:100])
@@ -109,36 +140,19 @@ for i in range(len(cc)):
         i_noteline+=1
     cc[i]=''.join(listline)
 
-"""
-#planned to delete empty tunes in no use at the first and last of charts  
-#meanwhile, there's a few cases that has true empty tune: 1st tune at 02-02053e
-#also, not simple. Need to move tune info to next or other tune.
-"""
-
-f1=open("./ksh/1_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
-f1.write('\n'.join(c_info)+'\n')
-for line in cc:
-    f1.write(line+'\n')
-f1.close()
+#interim(1)
 
 #2. ExtendKSH
-f2=open("./ksh/2_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
-
 i=0 #line count
 tune=0
 while(tune!=tune_total):
     for _ in range(tunesize[tune]):
         if _ not in infolist[tune]:
             cc[i]+=(','+cc[i][8:10])
-            f2.write(cc[i]+'\n')
-        else: #info
-            if cc[i]=='--':
-                f2.write("#"+str(tune+1)+'-------\n')
-            else:
-                f2.write(cc[i]+'\n')
         i+=1
     tune+=1
-f2.close()
+
+#interim(2)
 
 #3. CalculateKnobSpinQuantity
 knobcode='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno'
@@ -171,7 +185,7 @@ for LorR in range(8,10):
         for _ in range(tunesize[tune]):
             line=cc[i]
             if _ not in infolist[tune]:
-                if line[LorR]=='-': #The empty sign at both 'righ before a knob starts' and 'right after a knob ends'
+                if line[LorR]=='-': #both 'righ before a knob starts' and 'right after a knob ends'
                     prev='-'
                     newknob.append(' '*DIGIT)
                 elif line[LorR] in ':"#':
@@ -213,13 +227,6 @@ for LorR in range(8,10):
                     else: #Start of the knob
                         newknob.append(' '*DIGIT)
                     prev=line[LorR]
-                    """
-            else: #info
-                if cc[i]=='--':
-                    f2.write("#"+str(tune+1)+'-------\n')
-                else:
-                    f2.write(cc[i]+'\n')
-                    """
             i+=1
         if colon_count!=[0]: #toss
             colon_count.append(0)
@@ -230,8 +237,7 @@ for LorR in range(8,10):
 #print(len(newknoblist[0]))
 #print(len(cc),len(newknoblist[0])+sum([len(infolist[i]) for i in range(len(infolist))]))
 
-f3=open("./ksh/3_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
-#add
+#add to chart
 tune=0
 i_noteline=0
 for i in range(len(cc)):
@@ -239,17 +245,12 @@ for i in range(len(cc)):
         for LorR in range(8,10):
             cc[i]+=','+newknoblist[LorR-8][i_noteline]
         i_noteline+=1
-        f3.write(cc[i]+'\n')
-    else: #info
-        if cc[i]=='--':
-            f3.write("#"+str(tune+1-1)+'-------\n')
-            tune+=1
-        else:
-            f3.write(cc[i]+'\n')
-f3.close()
 
-"""
-#4. DetermineLR (formerly known as detLR.py)
+#interim(3)
+
+#4. DetermineLR
+#Nullity로 그 외의 손배치 확인
+
 #English
 """
 #Determine which hand to hit with, as every valid sign
@@ -281,9 +282,6 @@ f3.close()
 #한번 홀드on하면 끝날때까지 손을 바꾸지 않음.
 """
 
-f4=open("./ksh/4_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF8")
-f4.write('\n'.join(c_info)+'\n')
-
 holdon=[0]*6 #check if the hold is already on(active)
 holdside=['N']*6 #L/R: Left/Right   B:Both; also granted when other hand is free N:Nullity; something went wrong
 knobon=0 #check if the knob is already on(active)
@@ -293,94 +291,149 @@ KNOB=[8,9]
 #BTFX, KNOB: hand-wise
 #holdon, holdside: numeric-wise
 
-def otherside(hand, side):
-    if side=='L':
-        return 'R'
-    if side=='R':
-        return 'L'
-    if side=='B':
+def otherside(hand, side, capital):
+    if side in 'Ll':
+        return 'R' if capital else 'r'
+    if side in 'Rr':
+        return 'L' if capital else 'l'
+    if side in 'Bb':
         if hand in [0,1,5,8]:
-            return 'R'
+            return 'R' if capital else 'r'
         if hand in [2,3,6,9]:
-            return 'L' 
-    if side=='N':
-        return 'N'
+            return 'L' if capital else 'l'
+    if side in 'Nn':
+        return 'N' if capital else 'n'
 
-def side(hand):
+def side(hand, capital):
     if hand in [0,1,5,8]:
-        return 'L'
+        return 'L' if capital else 'l'
     if hand in [2,3,6,9]:
-        return 'R'
+        return 'R' if capital else 'r'
 
 def check_code(mode, hand):
-    if (mode=='chip'):
+    if mode=='chip':
         if hand in [0,1,2,3]:
             return '1'
         if hand in [5,6]:
             return '2'
-    if (mode=='hold'):
+    if mode=='hold':
         if hand in [0,1,2,3]:
             return '2'
         if hand in [5,6]:
             return '1'
 
-for i in range(tune_total): #i: number of tunes
-    for j in range(notelist[i]+len(infolist[i])): #j: the number of lines in a tune
-        if(j not in infolist[i]): #c_cont[i][j]: 1111|00|--
-            listline=list(c_cont[i][j])
+i=0 #line count
+tune=0
+prev_next=['-']*2
+while tune!=tune_total:
+    for _ in range(tunesize[tune]):
+        if _ not in infolist[tune]:
+            listline=list(cc[i][:10]) #1111|00|--
+
             #check the switches
-            if(any([holdon[x] for x in range(6)])):
-                for k in range(len(BTFX)):
-                    if listline[BTFX[k]]!=check_code('hold',BTFX[k]):
-                        holdon[k]=0
-                        holdside[k]='N'
-            if(knobon):
-                if(all([listline[x] in ['-',':'] for x in KNOB])):
+            if any([holdon[x] for x in range(len(holdon))]):
+                for j in range(len(BTFX)):
+                    if listline[BTFX[j]]!=check_code('hold',BTFX[j]):
+                        holdon[j]=0
+                        holdside[j]='N'
+            if knobon:
+                if all([listline[x] in '-"' for x in KNOB]):
                     knobon=0
                     knobside='N'
-            #scan one line: 1111|00|--
+
+            #scan the line
             hand=8
-            while(hand!=7):
-                if(hand in KNOB):
-                    if (listline[hand] not in ['-',':']):
-                        for k in range(6):
-                            if holdon[k]:
-                                listline[hand]=otherside(BTFX[k], holdside[k])
+            while hand!=7:
+                if hand in KNOB:
+                    free=0
+                    # 0##a: 'LR' (1st prior)
+                    # 0::a: 'lr' (2nd prior)
+                    # 0""a: '  '   
+                    # ----: '  '                   
+                    capital=False
+                    if listline[hand]=='#':
+                        capital=True
+
+                    #determine letter is whether a tip of stayknob or rectknob
+                    if listline[hand] in knobcode:
+                        line_offset=1
+                        tune_offset=0
+                        while True: #next knob
+                            #dashindex[i]: first line number at ith tune
+                            if i+line_offset >= dashindex[(tune+1)+tune_offset]:
+                                tune_offset+=1
+                            else: pass
+                            if i+line_offset-dashindex[tune+tune_offset] in infolist[tune+tune_offset]:
+                                line_offset+=1
+                            else: break
+                        prev_next[hand-8]+=cc[i+line_offset][hand]
+                        """
+                        print(cc[i+line_offset])
+                        print("No.",i+line_offset-dashindex[tune+tune_offset])
+                        print("tune: ", tune, "tune_offset: ", tune_offset)
+                        print("i: ", i, "line_offset: ", line_offset)
+                        print("prev_next[hand-8]:", prev_next[hand-8])
+                        """
+                        if '#' in prev_next[hand-8]:
+                            capital=True
+                        elif prev_next[hand-8] in ['-"','"-','""']:
+                            free=1
+                        
+                    prev_next[hand-8]=listline[hand]
+                    if listline[hand] not in '-"' and not free:
+                        for j in range(len(holdon)):
+                            if holdon[j]: #if hold already exist
+                                listline[hand]=otherside(BTFX[j], holdside[j], capital)
                                 break
-                        else:
-                            listline[hand]=side(hand)
+                            else:
+                                listline[hand]=side(hand, capital)           
                         knobon=1
                         knobside=listline[hand]
-                    else:
+                    else:  #knob free
                         listline[hand]=' '
-                if(hand in BTFX):
-                    if (listline[hand]!='0'):
-                        if(listline[hand]==check_code('chip', hand)):
-                            if(knobon):
-                                listline[hand]=otherside(hand, knobside)
+                        knobon=0
+                        knobside='N'
+
+                if hand in BTFX:
+                    capital=True
+                    if listline[hand]!='0':
+                        if listline[hand]==check_code('chip', hand):
+                            if knobon:
+                                listline[hand]=otherside(hand, knobside, capital)
                             else:
-                                listline[hand]=side(hand)
-                        elif(listline[hand]==check_code('hold', hand)):
-                            if(knobon):
-                                listline[hand]=otherside(hand, knobside)
+                                listline[hand]=side(hand, capital)
+                        elif listline[hand]==check_code('hold', hand):
+                            capital=False
+                            if knobon:
+                                listline[hand]=otherside(hand, knobside, capital)
                             else:
                                 for x in KNOB:
-                                    if(listline[x] not in ['-',':',' ']): #if(listline[8]!=' '):
-                                        listline[hand]=otherside(x,side(x))
+                                    if listline[x]!=' ':
+                                        listline[hand]=otherside(x, side(x, capital), capital)
                                 else:
-                                    if(holdon[BTFX.index(hand)]):
+                                    if holdon[BTFX.index(hand)]:
                                         listline[hand]=holdside[BTFX.index(hand)]
                                     else:
-                                        listline[hand]=side(hand)
+                                        listline[hand]=side(hand, capital)
                             holdon[BTFX.index(hand)]=1
                             holdside[BTFX.index(hand)]=listline[hand]
                     else:
                         listline[hand]=' '
-                hand+=1
-                if hand==10:
-                    hand=0
-            f4.write(''.join(listline)+'\n')
-        else:
-            f4.write(c_cont[i][j]+'\n')
-f4.close()
-"""
+                hand=(hand+1)%10
+            cc[i]=''.join(listline+list(cc[i][10:]))
+        i+=1
+    tune+=1
+
+interim(4)
+
+#6.CalculateHandCoordinates 
+
+xy_list=[[-729,162],[-243,162],[243,162],[729,162],
+[-481,-326],[481,-326],
+[-1133,598],[1133,598],[0,650]]
+#4 BTs, 2 FXes, 2 knobs, start
+
+
+
+#9.CalculateDensity 
+#노브와 노트 동시에 처리하는거에 가중치 or 손이동 쪽에서 가중치를 줘야하려나
