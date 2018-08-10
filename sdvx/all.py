@@ -1,25 +1,32 @@
+#output
+#1 구간 내 밀도(노트+노브), 손의 이동속도 
+#2 구간 내 노트(원핸드 included/excluded), 노브, 원핸드(노트 on일때 knob도 on이면 원핸드 카운트++) 밀도 각각, 손의 이동속도 
+
 """
 0.Calculate notelist and a sum of tunes shortly
 1.DetermineKnobType (revised ver of ‘vol_change’)
 2.ExtendKSH (nah just put a comma between two objects) --> would be joined to 0. and be "1."
 3.CalculateKnobSpinQuantity (wow such haard)
 4.DetermineLR (advanced version of detLR.py)
-
 5.AddTiming (time.py) (BPM and tune size(except info) matters)
-6.CalculateHoldDecayed (with lowercase of LR and timing)
 
-7.CalculateHandCoordinates 
-8.CalculateHandDistance 
+6.CalculateHoldDecayed (with lowercase of LR and timing)
+7.CalculateHandCoordinates (center of the active buttons and knobs)
+8.CalculateHandDistance (calculation result locates at latter point)
 9.(CalculateBPMratio)
 
-10.DivideToInterval 
-11.CalculateDensity 
-12.CalculateHandMoveSpeed 
+10.DivideToInterval (cut the chart every 400ms except chart info; no use since this stage) 
+11.CalculateDensity (thanks to same interval size, just sum up chip and hold_decayed plus knob_quantity) (but for precise decision, divide by its unique duration time)
+12.CalculateHandMoveSpeed (thanks to same interval size, just sum amount hand distance)
 13.(CalculateLegibility)
+14.run for all charts and output automatically
 """
 
 #inaccurate rounding float number issue
 """
+#0. I have a good idea of knob
+instead of calculating unit of each tune, subtract it from remained quantity
+
 #1.makes float number to integer temporarily and divide
 #2.also, seems that we need 3 or more DECIMAL_KNOB
 """ 
@@ -38,14 +45,6 @@ TRANSVERSE_FACTOR --> KNOB_TRANS
 #also, not simple. Need to move tune info to next or other tune.
 """
 
-#try to implement another style of line increment
-"""
-instead of 'cc[i]', cc[dashindex[tune]+i] with deleting initialization and maually increment 
-instead of 'while tune!=tune_total', for tune in range(tune_total) with deleting initialization and maually increment 
-instead of dashindex, tuneindex
-need to fix header printing
-"""
-
 ## Advanced 
 """
 1. Need to update DetermineLR gradually
@@ -53,6 +52,7 @@ need to fix header printing
 
 import sys
 import re
+from os import SEEK_END
 from decimal import Decimal, ROUND_HALF_UP
 
 fileobj=open(sys.argv[1],'rt', encoding='UTF-8-sig')
@@ -70,50 +70,36 @@ for i in range(len(lsplit)):
             header[line_split[0]]=line_split[1] #0 ~ i-1
         cc=lsplit[i:] # i ~ end
         break
-#print(header)
-#print("chart content:", cc[:20])
+
+#0. Calculate notelist and a sum of tunes shortly
+#Suppose that all ksh files ends with '--\n\n' (2 lines with sign of the tune empty)
+tuneindex=[i for i, line in enumerate(cc) if line=='--'] #ith: first line number at ith tune
+tunesize=[tuneindex[i+1]-tuneindex[i] for i in range(len(tuneindex)-1)]
+tune_total=len(tunesize)
+infolist=[]
+for tune in range(tune_total):
+    infolist.append([])
+    for i in range(tunesize[tune]):
+        if '|' not in cc[tuneindex[tune]+i]:
+            infolist[tune].append(i)
+notelist=[tunesize[tune]-len(infolist[tune]) for i in range(tune_total)]
 
 #Generate a file proceeded to current stage
 def interim(stage):
     filename='f'+str(stage)
-    filename=open("./ksh/"+str(stage)+"_"+sys.argv[1].replace('./ksh/',''),"w",encoding="UTF-8-sig")
-    #filename.write('\n'.join(str(header))+'\n')
-    filename.write('\n'.join(header)+'\n')
-    tune=0
-    for i in range(len(cc)):
-        if cc[i]=='--':
-            filename.write("#"+str(tune+1-1)+'-------\n')
-            tune+=1
-        else:
-            filename.write(cc[i]+'\n')
+    filename=open("./ksh/"+str(stage)+"_"+
+        sys.argv[1].replace('./ksh/',''),"w",encoding="UTF-8-sig")
+    for k, v in header.items():
+        filename.write('{:s}:{:s}'.format(k, v)+'\n')
+    for tune in range(tune_total):
+        for i in range(tunesize[tune]):
+            if i==0:
+                filename.write("#"+str(tune+1-1)+'-------')
+            else:
+                filename.write(cc[tuneindex[tune]+i])
+            if tune!=tune_total-1 or i!=tunesize[tune]-1:
+                filename.write('\n')
     filename.close()
-
-#0. Calculate notelist and a sum of tunes shortly
-while(len(cc[-1])==0): #some empty newlines
-    del cc[-1]
-tune_total=cc.count('--')
-if cc[-1]=='--': #some empty tunes
-    #not to delete cc[-1], it used to calculate
-    tune_total-=1
-
-dashindex=[i for i, line in enumerate(cc) if line=='--'] #ith: first line number at ith tune
-tunesize=[dashindex[i+1]-dashindex[i] for i in range(len(dashindex)-1)]
-#print("dashindex:", dashindex)
-#print("tunesize:", tunesize)
-#print(len(dashindex), len(tunesize), tune_total)
-infolist=[]
-linecount=0
-for i in range(tune_total):
-    infolist.append([])
-    for j in range(tunesize[i]):
-        if '|' not in cc[linecount+j]:
-            infolist[i].append(j)
-    linecount+=tunesize[i]
-notelist=[tunesize[i]-len(infolist[i]) for i in range(len(tunesize))]
-#print("tunesize:", tunesize)
-#print("notelist:", notelist)
-#print("infolist:", infolist)
-
 
 #1. DetermineKnobType
 newknoblist=[]
@@ -156,14 +142,10 @@ for i in range(len(cc)):
 #interim(1)
 
 #2. ExtendKSH
-i=0 #line count
-tune=0
-while(tune!=tune_total):
-    for _ in range(tunesize[tune]):
-        if _ not in infolist[tune]:
-            cc[i]+=(','+cc[i][8:10])
-        i+=1
-    tune+=1
+for tune in range(tune_total):
+    for i in range(tunesize[tune]):
+        if i not in infolist[tune]:
+            cc[tuneindex[tune]+i]+=(','+cc[tuneindex[tune]+i][8:10])
 
 #interim(2)
 
@@ -187,17 +169,15 @@ DIGIT=len(str( (len(knobcode)-1)*TRANSVERSE_FACTOR) )+2+DECIMAL_KNOB
 newknoblist=[]
 for LorR in range(8,10):
     # possible sign list: knobcode, - :" # 
-    i=0 #line count
-    tune=0 #initialization is so much critical
     newknob=[] #list of float numbers
     prev='-'
     colon_count=[0] #not to delete last element of the list
     rect_switch=0
     tune_fraction=[]  
-    while(tune!=tune_total):
-        for _ in range(tunesize[tune]):
-            line=cc[i]
-            if _ not in infolist[tune]:
+    for tune in range(tune_total): #initialization is so much critical # automatically initializing yay
+        for i in range(tunesize[tune]):
+            line=cc[tuneindex[tune]+i]
+            if i not in infolist[tune]:
                 if line[LorR]=='-': #both 'righ before a knob starts' and 'right after a knob ends'
                     prev='-'
                     newknob.append(' '*DIGIT)
@@ -209,12 +189,10 @@ for LorR in range(8,10):
                     if prev!='-': #End of the knob
                         #add for last unit
                         colon_count[-1]+=1 
-
                         #make exact number of space to each tune
                         for j in range(len(colon_count)):
                             fraction=colon_count[j]/notelist[tune-(len(colon_count)-1)+j]
                             tune_fraction.append(fraction)
-
                         #calculate knob_diff
                         knob_diff=knobcode.index(line[LorR])-knobcode.index(prev)
                         if rect_switch:  
@@ -222,36 +200,30 @@ for LorR in range(8,10):
                             sign=lambda x: (1,-1)[x<0]
                             knob_diff=sign(knob_diff)*CHOKKAKU
                             rect_switch=0
-
                         #calculate the amount of spin in each line
                         knob_diff*=TRANSVERSE_FACTOR
                         for j in range(len(colon_count)):
                             knob_ratio=tune_fraction[j]/sum(tune_fraction)
                             spin_line='{: {width}.{point}f}'.format(
-                                round(knob_diff*knob_ratio/colon_count[j], DECIMAL_KNOB), width=DIGIT, point=DECIMAL_KNOB)
-                            
+                                round(knob_diff*knob_ratio/colon_count[j], DECIMAL_KNOB), 
+                                width=DIGIT, point=DECIMAL_KNOB)
                             if float(spin_line)==0:
                                 spin_line=' '*DIGIT
                             newknob+=[spin_line]*colon_count[j]
-                        
                         #clean up
                         colon_count=[0]
                         tune_fraction=[]
                     else: #Start of the knob
                         newknob.append(' '*DIGIT)
                     prev=line[LorR]
-            i+=1
         if colon_count!=[0]: #toss
             colon_count.append(0)
-        tune+=1
     newknoblist.append(newknob.copy())
 
 #length test
-#print(len(newknoblist[0]))
 #print(len(cc),len(newknoblist[0])+sum([len(infolist[i]) for i in range(len(infolist))]))
 
 #add to chart
-tune=0
 i_noteline=0
 for i in range(len(cc)):
     if '|' in cc[i]: #noteline
@@ -331,15 +303,12 @@ def check_code(mode, hand):
         if hand in [5,6]:
             return '1'
 
-i=0 #line count
-tune=0
 prev_next=['-']*2
 Nullity_count=0
-while tune!=tune_total:
-    for _ in range(tunesize[tune]):
-        if _ not in infolist[tune]:
-            listline=list(cc[i][:10]) #1111|00|--
-
+for tune in range(tune_total):
+    for i in range(tunesize[tune]):
+        if i not in infolist[tune]:
+            listline=list(cc[tuneindex[tune]+i][:10]) #1111|00|--
             #check the switches
             if any([holdon[x] for x in range(len(holdon))]):
                 for j in range(len(BTFX)):
@@ -350,33 +319,31 @@ while tune!=tune_total:
                 if all([listline[x] in '-"' for x in KNOB]):
                     knobon=0
                     knobside='N'
-
             #scan the line
             hand=8
             while hand!=7:
                 if hand in KNOB:
-                    free=0
                     # 0##a: 'LR' (1st prior)
                     # 0::a: 'lr' (2nd prior)
                     # 0""a: '  '   
-                    # ----: '  '                   
+                    # ----: '  '
+                    free=0
                     capital=False
                     if listline[hand]=='#':
                         capital=True
-
                     #determine letter is whether a tip of stayknob or rectknob
                     if listline[hand] in knobcode:
                         line_offset=1
                         tune_offset=0
-                        while True: #next knob
-                            
-                            if i+line_offset >= dashindex[(tune+1)+tune_offset]:
+                        idx=tuneindex[tune]+i
+                        while True: #next knob 
+                            if idx+line_offset >= tuneindex[(tune+1)+tune_offset]:
                                 tune_offset+=1
                             else: pass
-                            if i+line_offset-dashindex[tune+tune_offset] in infolist[tune+tune_offset]:
+                            if idx+line_offset-tuneindex[tune+tune_offset] in infolist[tune+tune_offset]:
                                 line_offset+=1
                             else: break
-                        prev_next[hand-8]+=cc[i+line_offset][hand]
+                        prev_next[hand-8]+=cc[idx+line_offset][hand]
                         if '#' in prev_next[hand-8]:
                             capital=True
                         elif prev_next[hand-8] in ['-"','"-','""']:
@@ -429,9 +396,7 @@ while tune!=tune_total:
                     else:
                         listline[hand]=' '
                 hand=(hand+1)%10
-            cc[i]=''.join(listline+list(cc[i][10:]))
-        i+=1
-    tune+=1
+            cc[tuneindex[tune]+i]=''.join(listline+list(cc[tuneindex[tune]+i][10:]))
 
 if Nullity_count!=0:
     print("Null detected! Nullity_count: ", Nullity_count)
@@ -439,30 +404,24 @@ if Nullity_count!=0:
 #interim(4)
 
 #5.AddTiming (BPM and tune size(except info) matters)
-#BPM 변화 생기는 i 찾기 (t=XX) that is in infolist
-#BPM 변화 없는 하나의 튠은 모두 같은 timing 간격을 갖는다. only tune size matters
-#변속 발견하면 stack해둔 라인들 계산 시작. 변속 없는 튠은 쭈루룩 간단 계산, 있는건 조금 신경써줘서 계산
+#Decimal 잘먹히는지 간단히 확인
 
-#if BPM:280 -> 280/4= 65 tunes per 60 sec = 60,000 ms 
-#923.077ms per one tune
-#57.702ms per one line if notelist[tune]==16
 def duration(BPM):
-    #return round(60*1000/(BPM/4)*10**DECIMAL)/10**DECIMAL
     return 60*1000/(BPM/4)
 
 BPM=1 #Beats Per Minute
 if '-' not in header['t']:
     BPM=int(header['t'])
 
-tune=0
+DECIMAL_TIME='.001'
 time=0.0
-while tune!=tune_total:
+for tune in range(tune_total):
     tune_info={}
     BPMidx=[]
     #make tune_info
     for i in range(tunesize[tune]):
         if i in infolist:
-            line_split=cc[dashindex[tune]+i].split('=')
+            line_split=cc[tuneindex[tune]+i].split('=')
             tune_info[line_split[0]]=line_split[1]
             BPMidx.append(i)
     
@@ -470,13 +429,13 @@ while tune!=tune_total:
         #find BPM change with tune_info
         if i in infolist[tune]:
             if i in BPMidx:
-                BPM=cc[dashindex[tune]+i]
+                BPM=cc[tuneindex[tune]+i]
         else:
             time+=duration(BPM)/notelist[tune]
-            cc[dashindex[tune]+i]+=','+str(Decimal(str(time)).quantize(Decimal('000000.001'), ROUND_HALF_UP))
-            #'{: {width}.{point}f}'.format(
-            #    str(round(time*10**DECIMAL)/10**DECIMAL), width=DIGIT, point=DECIMAL)
-    tune+=1
+            cc[tuneindex[tune]+i]+=','+'{: {width}.{point}f}'.format(
+            float(Decimal(str(time)).quantize(Decimal(DECIMAL_TIME), ROUND_HALF_UP)),
+            width=6+len(DECIMAL_TIME), point=len(DECIMAL_TIME)-1)
+
 interim(5)
 
 #6.CalculateHoldDecayed (with lowercase of LR and timing)
@@ -495,3 +454,10 @@ xy_list=[[-729,162],[-243,162],[243,162],[729,162],
 
 #11.CalculateDensity 
 #노브와 노트 동시에 처리하는거에 가중치 or 손이동 쪽에서 가중치를 줘야하려나
+
+#후에 learning 돌릴때
+#모델 구조, '3차'
+# 1. 모델 식 그자체. 어떤 식을 쓸건지
+# 2. 값 도출하는데 있어 사용된 상수들 (hold decay log coefficient, interval length, etc.)
+# 3. 본격적 식 내 weight
+ 
