@@ -1,8 +1,7 @@
-#5번에서 effective beat check
-#주석 정리
-#메모 정리 /폰,컴퓨터
 #중복코드 개선 (remain/)
-#6번 구현
+#주석 정리
+#메모 정리 (phone, PC)
+#soflan float decimal error occurred
 
 #new try
 #투덱사이트에서 자체적으로 계산한 난이도요소들을 input으로
@@ -75,8 +74,6 @@ rectknob or slamknob(ksh readme ver)
 order of two-word: DECIMAL_KNOB(v) or KNOB_DECIMAL etc.
 """
 
-#초기화 함수 추가 (beat_per_tune, BPM 등)
-
 ## Advanced
 #1. Need to update DetermineLR gradually
 #2. tune+1-1    #way to treat empty first tune
@@ -93,6 +90,7 @@ MG277: rect knob is treated as line knob in specific condition
 from sys import argv
 from re import split
 from decimal import Decimal, ROUND_HALF_UP
+import math
 
 fileobj=open(argv[1],'rt', encoding='UTF-8-sig')
 file_content=fileobj.read() #file_content is 'str'
@@ -118,18 +116,21 @@ tunesize=[tuneindex[i+1]-tuneindex[i] for i in range(len(tuneindex)-1)]
 tune_total=len(tunesize)
 infoline=[]
 BPMidx=[]
-beatidx=[]
+tunebeat=[]
+up_to_date_beat=4.0
 for tune in range(tune_total):
     infoline.append([])
     BPMidx.append([])
-    beatidx.append([])
     for i in range(tunesize[tune]):
         if '|' not in cc[tuneindex[tune]+i]:
             infoline[tune].append(i)
             if cc[tuneindex[tune]+i].split('=')[0]=='t':
                 BPMidx[tune].append(i)
             if cc[tuneindex[tune]+i].split('=')[0]=='beat':
-                beatidx[tune].append(i)
+                beats_fraction=[int(cc[tuneindex[tune]+i    
+                ].split('=')[1].split('/')[j]) for j in range(2)]
+                up_to_date_beat=float(beats_fraction[0]/beats_fraction[1])*4
+    tunebeat.append(up_to_date_beat)
 tune_den=[tunesize[tune]-len(infoline[tune]) for tune in range(tune_total)]
 
 #Generate a file proceeded to current stage
@@ -157,7 +158,7 @@ def mark(chara):
             if i not in infoline[tune]:
                 cc[tuneindex[tune]+i]+=chara
 
-#interim(1)
+interim(1)
 
 #2. DetermineKnobType
 newknoblist=[]
@@ -204,7 +205,7 @@ for tune in range(tune_total):
             cc[tuneindex[tune]+i]+=cc[tuneindex[tune]+i][8:10]
 
 
-#interim(2)
+interim(2)
 
 #3. CalculateKnobSpinQuantity
 knobcode='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno'
@@ -229,17 +230,13 @@ DIGIT_KNOB=len('-') + len(INTEGER_KNOB) + len(DECIMAL_KNOB)
 newknoblist=[]
 for LorR in range(8,10):
     # possible sign list: knobcode, - :" #
-    beats_per_tune=4.0
     newknob=[] #list of float numbers
     prev='-'
     colon_count=[0] #not to delete last one element of the list
     rect_switch=0
     beat_fraction=[]  
     for tune in range(tune_total): #initialization is so much critical      #automatically initialized yay
-        if len(beatidx[tune]):
-            beats_fraction=[int(cc[tuneindex[tune]+
-            beatidx[tune][0]].split('=')[1].split('/')[i]) for i in range(2)]
-            beats_per_tune=float(beats_fraction[0]/beats_fraction[1])*4
+        beats_per_tune=tunebeat[tune]
         for i in range(tunesize[tune]):
             line=cc[tuneindex[tune]+i]
             if i not in infoline[tune]:
@@ -301,7 +298,7 @@ for i in range(len(cc)):
                 cc[i]+=' '+newknoblist[LorR-8][i_note]
         i_note+=1
 
-#interim(3)
+interim(3)
 
 #4. DetermineLR
 #English
@@ -373,10 +370,13 @@ def check_code(mode, hand):
         if hand in [5,6]:
             return '1'
 
+hold_whether_start=[] #for one of progress in No.5 stage: determine actual BPM
 prev_next=['-']*2
 Nullity=0
 for tune in range(tune_total):
+    hold_whether_start.append([])
     for i in range(tunesize[tune]):
+        hold_start_now=0
         if i not in infoline[tune]:
             listline=list(cc[tuneindex[tune]+i][:10]) #1111|00|--
             #check the switches
@@ -461,17 +461,21 @@ for tune in range(tune_total):
                             if ' ' not in listline[8:10]: #Nullity
                                 listline[hand]='n'
                                 Nullity+=1
+                            hold_start_now=1 if holdon[BTFX.index(hand)]==0 else 0
                             holdon[BTFX.index(hand)]=1
                             holdside[BTFX.index(hand)]=listline[hand]
                     else:
                         listline[hand]=' '
                 hand=(hand+1)%10
             cc[tuneindex[tune]+i]=''.join(listline+list(cc[tuneindex[tune]+i][10:]))
-
+        if hold_start_now:
+            hold_whether_start[tune].append(1)
+        else:
+            hold_whether_start[tune].append(0)
 if Nullity:
     print("Null detected! Nullity: ", Nullity)
 
-#interim(4)
+interim(4)
 
 #5.CalculateHoldDecayed (with lowercase of LR and timing)
 # total holding(holdcount) function: y=a*x^b (x: time), (a>0, 0<b<=1)    #put it at front 
@@ -503,21 +507,21 @@ def holdbeat(lower, upper, scaling=1):
         BPM*scaling/60)**(1/HOLD_DECAY_EXP)*time**(1/HOLD_DECAY_EXP)
     return holdtick_integral(upper)-holdtick_integral(lower)
 """
-def holdbeat(lower, upper, scaling=1):
-    holdbeat_integral=lambda ith_beat: HOLD_TICK_PER_ONE_BEAT*(ith_beat*scaling)**(1/HOLD_DECAY_EXP)
+def holdbeat(lower, upper):
+    holdbeat_integral=lambda ith_beat: HOLD_TICK_PER_ONE_BEAT*ith_beat**(1/HOLD_DECAY_EXP)
     return holdbeat_integral(upper)-holdbeat_integral(lower)
 
-#beat_scaling=[1]*tune_total
-beat_scaling=[]
 #scaling
         #scaling
         #정직하게 4비트면 16비트로 뻥튀기
         #노브덕에 16비트 먹었는지 등을 확인
         #노트쪽 영역 스캔.
         # all(), cc[tuneindex[tune]+i][:10] == '0000|00|00'
-        #노브도 반영할지 말지는 후에 결정 
+        #노브도 반영할지 말지는 후에 결정
         # --> 만약 한다면 돌리는 방향 전환을 하나의 beat로 삼는건데 잘 안드러날듯
+"""
 for tune in range(tune_total):
+    beats_per_tune=tunebeat[tune]
     beats_list=[]
     for i in range(tunesize[tune]):
         if i not in infoline[tune]:
@@ -525,8 +529,60 @@ for tune in range(tune_total):
                 beats_list.append(0)
             else:
                 beats_list.append(1)
+"""
+#beat_scaling=[1]*tune_total
+beat_scaling=[]
+for tune in range(tune_total):
+    beat_scaling.append([])
+    beats_per_tune=tunebeat[tune]
+    divisor=[1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48]
 
+    if tune_den[tune]>=beats_per_tune:
+        #calculate scaling for every beats in a tune
+        for ith_beat in range(math.ceil(beats_per_tune)):
+            skip_counter=0
+            for i in range(1, len(divisor)):
+                div=divisor[i]
+                scaling=(1/4)*div #currently scaling==1 when 4 beats exist in one beat-time
 
+                lines_per_beat=(tune_den[tune]/beats_per_tune)/(scaling*4)
+                if lines_per_beat<1:
+                    scaling=(1/4)*divisor[i-1-skip_counter]
+                    break
+                elif lines_per_beat!=int(lines_per_beat): #if lines_per_beat is float value
+                    skip_counter+=1
+                    continue
+                beat_valid=[]
+                if tune_den[tune]/lines_per_beat!=int(tune_den[tune]/lines_per_beat):
+                    print("float decimal error occurred!")
+                for j in range(int(tune_den[tune]/lines_per_beat)):
+                    i_note=0
+                    i_info=0
+                    while i_note!=lines_per_beat:
+                        line_offset=int(j*lines_per_beat+i_note+i_info)
+                        if j*lines_per_beat+i_note+i_info!=int(j*lines_per_beat+i_note+i_info):
+                            print("float decimal error occurred!")
+                        if line_offset not in infoline[tune]:
+                            line_part=cc[tunesize[tune]+line_offset][:8] #'    |  |'
+                            #if tune>=64:
+                            #    print(tune, i_note, lines_per_beat, line_offset)
+                            if (('L'or'R') in line_part) or hold_whether_start[tune][line_offset]:
+                                beat_valid.append(1) 
+                            else:
+                                beat_valid.append(0)
+                            i_note+=1
+                        else:
+                            i_info+=1
+
+                if beat_valid.count(1)<=len(beat_valid)/2:
+                    scaling=(1/4)*divisor[i-1-skip_counter]
+                    break
+            beat_scaling[tune].append(scaling)
+    else: #tune_den[tune] < 4
+        for ith_beat in range(math.ceil(beats_per_tune)):
+            beat_scaling[tune].append(1/4)
+
+#math.floor(i_note/(tune_den[tune]/beats_per_tune))
 #Since each chart column are independent to each other, loop it each other
 mark(',')
 DECIMAL_HOLD='.001'
@@ -534,23 +590,30 @@ beats_per_tune=4.0
 for hand in BTFX:
     holdcount=0.0
     for tune in range(tune_total):
-        if len(beatidx[tune]):
-            beats_fraction=[int(cc[tuneindex[tune]+
-            beatidx[tune][0]].split('=')[1].split('/')[i]) for i in range(2)]
-            beats_per_tune=float(beats_fraction[0]/beats_fraction[1])*4
+        beats_per_tune=tunebeat[tune]
+        i_note=0
+        i_info=0
         for i in range(tunesize[tune]):
             if i not in infoline[tune]:
                 if cc[tuneindex[tune]+i][hand] in 'lr': # hold
                     lower=holdcount
-                    upper=lower+beats_per_tune/tune_den[tune]
+                    if tune_den[tune]>=beats_per_tune:
+                        #print(tune_den[tune])
+                        beat_scaling_idx=math.floor(i_note/(tune_den[tune]/beats_per_tune))
+                        upper=lower+(beats_per_tune*beat_scaling[tune][beat_scaling_idx])/tune_den[tune]
+                    else:
+                        upper=lower+beats_per_tune*(1/4)/tune_den[tune]
                     cc[tuneindex[tune]+i]+='{:{width}.{point}f}'.format(
                         float(Decimal(str(holdbeat(
-                        lower, upper, beat_scaling[tune]))).quantize(Decimal(DECIMAL_HOLD), ROUND_HALF_UP)), 
+                        lower, upper))).quantize(Decimal(DECIMAL_HOLD), ROUND_HALF_UP)), 
                         width=len('1')+len(DECIMAL_HOLD), point=len(DECIMAL_HOLD)-1)
                     holdcount=upper
                 else:
                     holdcount=0.0
                     cc[tuneindex[tune]+i]+=' '*(len('1')+len(DECIMAL_HOLD))
+                i_note+=1
+            else: #infoline
+                i_info+=1
     mark(' ') if BTFX.index(hand)!=len(BTFX)-1 else mark(',')
 
 
@@ -586,19 +649,19 @@ for hand in BTFX:
                     prev_timing=timing
 """
 
-#interim(5)
+interim(5)
 
 #6.CalculateHandCoordinates 
-#xy_list=[
-#[-729,162],[-243,162],[243,162],[729,162],
-#[-481,-326],[481,-326],
-#[-1133,598],[1133,598],[0,650]]
+#xy_list=[[-729,162],[-243,162],[243,162],[729,162],
+#[-481,-326],[481,-326],[-1133,598],[1133,598],
+# [0,650]]
 #4 BTs, 2 FXes, 2 knobs, start
 
 #6.CalculateHandCoordinates (center of the active buttons and knobs)
 #6-1.CalculateHandDistance (calculation result locates at latter point)
 #노브 돌리는양 계산하듯이.
 #왼손, 오른손에 대하여 for문 2번돌림 for each_hand in ['Ll','Rr']
+#BT들만 나오면 손고정
 
 
 #7.AddTiming (BPM and tune size(except info) matters)
@@ -615,10 +678,7 @@ time=0.0
             #add new time portion for every BPM change happens
             #soon be deleted
 for tune in range(tune_total):
-    if len(beatidx[tune]):
-        beats_fraction=[int(cc[tuneindex[tune]+
-        beatidx[tune][0]].split('=')[1].split('/')[i]) for i in range(2)]
-        beats_per_tune=float(beats_fraction[0]/beats_fraction[1])*4
+    beats_per_tune=tunebeat[tune]
     if len(BPMidx[tune]):
         no_BPM_change_at_start=any(i not in infoline[tune] for i in range(BPMidx[tune][0]))
         #if BPM no change from previous tune
