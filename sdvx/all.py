@@ -1,4 +1,9 @@
-#직각 시작이 직선노브의 끝점이면 카운팅이 안되고 있음
+#홀드때도 colon_count 세줘야하는지
+
+#Nullity 나왔을 때 대처 (3-1에서 앞서 감지)
+#1.홀드면 --> 홀드를 한손으로.
+#2.노트면 --> 노브 보정 등을 기대하여 노브 조작 X
+
 #노브방향 바뀔때 strain 추가 with gradient
 """
 앞 노브 전체 회전량의 절반
@@ -11,10 +16,8 @@
 """
 1.Calculate main datas
 2.DetermineKnobType (revised ver of ‘vol_change’)
-3.CalculateKnobSpinQuantity (wow such haard)
-
+3.CalculateKnobSpinQuantity (wow such hard)
 (3-1.CheckSpecialPattern (sewing, duplex))
-
 4.DetermineLR (advanced version of detLR.py)
 5.CalculateHoldDecayed (with lowercase of LR and beats)
 6.CalculateHandCoordinates (center of the active buttons and knobs)
@@ -23,7 +26,7 @@
 
 8.AddTiming (BPM and tune size(except info) matters)
 9.DivideToInterval (cut the chart every 400ms except chart info; no use since this stage)
-10.CalculateDifficultyFactor
+(10.CalculateDifficultyFactor)
 10-1.CalculateDensity (thanks to same interval size, just sum up chip and hold_decayed plus knob_quantity) (but for precise decision, divide by its unique duration time)
 10-2.CalculateHandMoveSpeed (thanks to same interval size, just sum amount hand distance)
 10-3.(CalculateLegibility)
@@ -173,7 +176,7 @@ KNOB_SCALING=1*4
 
 #slam knob has critical spin amount to be hit
 #between 1/5 to 1/10 of field width by simulation
-#practically, beginners don't know about it
+#practically, beginners aren't aware it
 CHOKKAKU_CRITICAL=0.15
 if header['difficulty']=='light': 
     CHOKKAKU_CRITICAL=0.75
@@ -193,12 +196,18 @@ def floatinfo(obj_type):
     elif obj_type=='TIME':
         point='.001'
         width=len('120000')+len(point)
+    elif obj_type=='HAND':
+        point='.001'
+        width=len('10')+len(point)
     return point, width
 
 def floatformat(value, obj_type):
     point, width = floatinfo(obj_type)
-    dec=Decimal(value).quantize(Decimal(point), ROUND_HALF_UP)
-    return '{:{w}.{p}f}'.format(float(dec), w=width, p=len(point)-1)
+    if value:
+        dec=Decimal(value).quantize(Decimal(point), ROUND_HALF_UP)
+        return '{:{w}.{p}f}'.format(float(dec), w=width, p=len(point)-1)
+    else:
+        return '{:{w}}'.format(' ', w=width)
 
 newknoblist=[]
 for LorR in range(8,10):
@@ -215,7 +224,7 @@ for LorR in range(8,10):
             if i not in infoline[tune]:
                 if line[LorR]=='-': #including 'right before a knob starts' or 'right after a knob ends'
                     prev='-'
-                    newknob.append(' '*floatinfo('KNOB')[1])
+                    newknob.append(0.0)
                 elif line[LorR] in ':"#':
                     colon_count[-1]+=1
                     if line[LorR]=='#':
@@ -242,17 +251,27 @@ for LorR in range(8,10):
                             knob_ratio=beat_fraction[j]/sum(beat_fraction)
                             remain=knob_ratio*knob_diff
                             for k in range(colon_count[j]): #special calculate method to reduce value loss
-                                if knob_diff:
-                                    spin_per_line=remain/(colon_count[j]-k)
-                                    spin_delta=floatformat(spin_per_line, 'KNOB')
-                                    remain-=spin_per_line
-                                else: #stayknob
-                                    spin_delta=' '*floatinfo('KNOB')[1] #width
-                                newknob.append(spin_delta) 
-                        #clean up
-                        colon_count=[0]
+                                spin_per_line=remain/(colon_count[j]-k)
+                                remain-=spin_per_line
+                                newknob.append(spin_per_line)
+                        #get next knob (duplicated)
+                        line_offset=1
+                        tune_offset=0
+                        idx=tuneindex[tune]+i
+                        while True: #next knob 
+                            if idx+line_offset >= tuneindex[(tune+1)+tune_offset]:
+                                tune_offset+=1
+                            else: pass
+                            if idx+line_offset-tuneindex[tune+tune_offset] in infoline[tune+tune_offset]:
+                                line_offset+=1
+                            else: break
+                        #clean up (re-initializing)
+                        if cc[idx+line_offset][LorR] in '-"': #true end of knob
+                            colon_count=[0]
+                            newknob.append(0.0)
+                        else:
+                            colon_count=[1]
                         beat_fraction=[]
-                        newknob.append(' '*floatinfo('KNOB')[1])
                     else: #Start of the knob
                         colon_count[-1]+=1
                         #newknob.append(' '*floatinfo('KNOB')[1])
@@ -266,10 +285,8 @@ i_note=0
 for i in range(len(cc)):
     if '|' in cc[i]: #noteline
         for LorR in range(8,10):
-            if LorR==8:
-                cc[i]+=','+newknoblist[LorR-8][i_note]
-            else:
-                cc[i]+=' '+newknoblist[LorR-8][i_note]
+            cc[i]+=',' if LorR==8 else ' '
+            cc[i]+=floatformat(newknoblist[LorR-8][i_note],'KNOB')
         i_note+=1
 
 #interim(3)
@@ -349,7 +366,7 @@ Nullity_BTFX_while_all_KNOB_on=0
 for tune in range(tune_total):
     hold_begin.append([])
     for i in range(tunesize[tune]):
-        hold_begin_line=[0]*6
+        hold_begin_line=[0]*6 #only this list has element of infoline; for compatibility to hold_decayed
         if i not in infoline[tune]:
             listline=list(cc[tuneindex[tune]+i][:10]) #1111|00|--
             #check the switches
@@ -449,6 +466,7 @@ for tune in range(tune_total):
                 hand=(hand+1)%10
             cc[tuneindex[tune]+i]=''.join(listline+list(cc[tuneindex[tune]+i][10:]))
         hold_begin[tune].append(hold_begin_line)
+
 if Nullity_BTFX_while_all_KNOB_on:
     print("Nullity detected! Nullity_BTFX_while_all_KNOB_on: ", Nullity_BTFX_while_all_KNOB_on)
 
@@ -582,17 +600,21 @@ for hand in BTFX:
                     holdcount=upper
                 else:
                     holdcount=0.0
-                    cc[tuneindex[tune]+i]+=' '*floatinfo('HOLD')[1]
+                    cc[tuneindex[tune]+i]+=floatformat(0.0, 'HOLD')
                 i_note+=1
             else: #infoline
                 i_info+=1
-    mark(' ') if BTFX.index(hand)!=len(BTFX)-1 else mark(',')
+    if BTFX.index(hand)!=len(BTFX)-1:
+        mark(' ')
 
 #interim(5)
 #6.CalculateHandCoordinates (center of the active buttons and knobs)
+#6-1.CalculateMovement (calculation result locates at latter point)
+#same format from knob quantity calculation
+
 #4 BTs, 2 FXes, 2 knobs, start
 xy=((-9,2),(-3,2),(3,2),(9,2),(-6,-4),(6,-4),(-14,7.5),(14,7.5),(0,8))
-def center(LorR, hand_queue):
+def center(hand_queue):
     choice=list(set(hand_queue)) #remove duplicated element in center calculation (that is, no weight in multiple appearence)
     return np.average([xy[(BTFX+KNOB).index(choice[i])] for i in range(len(choice))], axis=0)
 
@@ -604,50 +626,56 @@ def nearby(hand):
     if hand==1 or hand==2:
         return tuple(BTFX)
     if hand==5:
-        return tuple(BTFX.copy().remove(3))
+        BTFXcopy=BTFX.copy()
+        BTFXcopy.remove(3)
+        return tuple(BTFXcopy)
     if hand==6:
-        return tuple(BTFX.copy().remove(0))
+        BTFXcopy=BTFX.copy()
+        BTFXcopy.remove(0)
+        return tuple(BTFXcopy)
     if hand in [8,9]: #knob
-        return tuple(hand) #only itself is nearby
+        return (hand,) #only itself is nearby
 
 major_hand={'Ll':(0,1,5), 'Rr':(2,3,6)}
-major_center={LorR:center(LorR, hand_tuple) for LorR, hand_tuple in enumerate(major_hand)}
-"""
-major_center={}
+major_center={LorR:center(major_hand[LorR]) for LorR in ['Ll', 'Rr']}
+
+HAND_SCALING=1
+Nullity_cannot_cover_with_one_hand=0 #can only be checked after LR determined
+distance_list=[]
 for LorR in ['Ll', 'Rr']:
-    major_center[LorR]=np.average([xy[(BTFX+KNOB).index(
-        major_hand[LorR][i])] for i in range(len(major_hand[LorR]))], axis=0)
-"""
-location_list=[]
-Nullity_cannot_cover_with_one_hand=0 #can check after LR determined
-for LorR in ['Ll', 'Rr']:
-    location=[]
+    distance=[]
     hand_queue=[]
-    #center_point: topologically same to 'knobcode'
-    center_point_prev=np.empty([1,1]) 
-    center_point=major_center[LorR] #default
+    center_point_prev=np.array([])
+    center_point=major_center[LorR] #topologically same to 'knobcode'
+    colon_count=[0] #not to delete last one element of the list
+    beat_fraction=[]
     for tune in range(tune_total):
+        beats_per_tune=tunebeat[tune]
         i_note=0
+        i_info=0
         for i in range(tunesize[tune]):
-            if i not in infoline[tune]:
-                if LorR in cc[tuneindex[tune]+i]: #something does exist
+            if i not in infoline[tune]: #calculate hand coordinates(location)
+                if any(LorR[x] in cc[tuneindex[tune]+i][:10] for x in range(2)): #using left or right hand in this line
                     Nullity_check=[]
+                    #update queue for every active line
                     for hand in [8,0,5,1,2,6,3,9]: #start with and end to obj which has lowest locality
                         if cc[tuneindex[tune]+i][hand] in LorR:
-                            #no put hold/knob which is not beginning to queue to avoid meaningless duplication
+                            #no put not-a-beginning hold object to queue to avoid meaningless duplication
                             if hand in BTFX:
-                                if cc[tuneindex[tune]+i][hand] in 'lr' and not hold_begin[tune][i_note][BTFX[hand]]:
+                                if cc[tuneindex[tune]+i][hand] in 'lr' and not hold_begin[tune][i_note+i_info][BTFX.index(hand)]:
                                     if hand in hand_queue:
                                         continue
-                            else: #knob
+                            else: #no put same knob object in queue more than twice
                                 if hand in hand_queue: #there's no case that any BTFX appears when spinning knob 
                                     continue
                             if len(hand_queue)==4: #suppose each hand can press buttons up to 4
                                 del hand_queue[0]
-                            if hand not in nearby(hand_queue[-1]): #reset queue if new item is not nearby to before one
+                            if len(hand_queue) and hand not in nearby(hand_queue[-1]): #reset queue if new item is not nearby to before one
                                 hand_queue=[]
                             hand_queue.append(hand)
                             Nullity_check.append(hand)
+                    
+                    #Nullity check
                     find=False
                     for j in range(len(Nullity_check)):
                         for k in range(len(Nullity_check)):
@@ -656,28 +684,68 @@ for LorR in ['Ll', 'Rr']:
                                 Nullity_cannot_cover_with_one_hand+=1
                                 break
                         if find: break #break double loop at once 
+
+                    #calculate center_point
                     if all([hand_queue[j] in major_hand[LorR] for j in range(len(hand_queue))]):
                         center_point=major_center[LorR]
                     else:
-                        center_point=center(LorR, hand_queue)
-                    if not np.array_equal(center_point, center_point_prev):
-                        location.append(center_point) 
-                    else: #something does exist but no hand location change
-                        location.append(' ')
+                        center_point=center(hand_queue)
+
+                    #whether hand location has changed or not, calculate distance in each line
+                    if center_point_prev.size:
+                        hand_dist=np.linalg.norm(center_point-center_point_prev)*HAND_SCALING
+                    #before first noteline appeared
+                    else: hand_dist=0.0
+                    
+                    #make exact number of space to each tune
+                    for j in range(len(colon_count)):
+                        fraction=beats_per_tune*(colon_count[j]/tune_den[tune-(len(colon_count)-1)+j])
+                        beat_fraction.append(fraction)
+                    
+                    #calculate the amount of distance in each line
+                    for j in range(len(colon_count)):
+                        dist_ratio=beat_fraction[j]/sum(beat_fraction)
+                        remain=dist_ratio*hand_dist
+                        for k in range(colon_count[j]): #special calculate method to reduce value loss
+                            dist_per_line=remain/(colon_count[j]-k)
+                            #dist_delta=floatformat(dist_per_line, 'HAND')
+                            remain-=dist_per_line
+                            distance.append(dist_per_line)
+
+                    # reset colon_count and update center_point_prev
+                    colon_count=[1]
+                    beat_fraction=[]
                     center_point_prev=center_point
                 else: #noteline but don't need current LorR
-                    location.append(' ')
+                    colon_count[-1]+=1
                 i_note+=1
+            else: i_info+=1
+        if tune==tune_total-1: #last noteline and after of it
+            for j in range(len(colon_count)):
+                for k in range(colon_count[j]):
+                    distance.append(0.0)
+        elif colon_count!=[0]: #toss
+            colon_count.append(0)
+    distance_list.append(distance)
+
+#print(distance_list)
+#print(len(distance_list[1]),sum([tune_den[tune] for tune in range(tune_total)]))
+#add hand distance amount to chart
+i_note=0
+for i in range(len(cc)):
+    if '|' in cc[i]: #noteline
+        for LorR in range(2):
+            cc[i]+=',' if LorR==0 else ' '
+            cc[i]+=floatformat(distance_list[LorR][i_note], 'HAND')
+        i_note+=1
 
 if Nullity_cannot_cover_with_one_hand:
     print("Nullity detected! Nullity_cannot_cover_with_one_hand: ", Nullity_cannot_cover_with_one_hand)
 
-#6-1.CalculateMovement (calculation result locates at latter point)
-#same format from knob quantity calculation
-
 #interim(6)
 #7.AddTiming (BPM and tune size(except info) matters)
 #timing in each line indicates 'the time right after the line has passed'
+mark(',')
 beats_per_tune=4.0
 BPM=1 #Beats Per Minute
 if '-' not in header['t']:
