@@ -1,0 +1,18 @@
+Difficulty Attribute
+구간내
+1.노트밀도
+    1-1.노트밀도합
+    1-2.노트밀도차
+2.노브밀도
+3.손이동거리합(손이동속도)
+(4.가독성)
+
+Detailed
+1.Hold Decayed
+2.Increase slam knob critical from 0.15 to 0.5, 0.75 at NOVICE, ADVANCED
+=========================================================================
+
+HOLD_DECAY_EXP=2
+HOLD_TICK_PER_ONE_BEAT=3/2
+DECAY_FACTOR=0.9
+INTERVAL=400
