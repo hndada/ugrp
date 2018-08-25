@@ -28,9 +28,8 @@ while True:
 #decode_switch=input("Fix the crashed header to normal with prepared replacement? "+
 #    "current:"+str(len(header_replace))+" (Y/N)")
 
-
-print("Start to make backup to", par+'/'+argv[1].split('/')[-1]+'_old', "  ...")
 if backup_switch=='Y':
+    print("Start to make backup to", par+'/'+argv[1].split('/')[-1]+'_old', "  ...")
     lib.copytree(argv[1], par+'/'+argv[1].split('/')[-1]+'_old')
 
 DIFF_TYPE=['light','challenge','extended','infinite']
