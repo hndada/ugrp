@@ -1,13 +1,12 @@
+#beat_fraction divide by 0
 #노브에서 매번 손이동 한것으로 계산됨
-#변박곡 에러
-
-#구분선 재정의 ('|') #hold_decayed, knob_quantity 0은 zero로.
 
 #Nullity 나왔을 때 대처 (3-1에서 앞서 감지)
 #1.홀드면 --> 홀드를 한손으로.
 #2.노트면 --> 노브 보정 등을 기대하여 노브 조작 X
 
-#weight, factor 모아보기
+#scaling, factor 모아보기
+#주석정리
 
 #노브방향 바뀔때 strain 추가 with gradient
 """
@@ -18,89 +17,37 @@
 주차가 1박자 이상 존재하면 리셋 (튠넘어가는 경우 총합 박자)
 """
 
+#Generate difficulty factor in each interval of each chart with csv format 
 """
-1.Calculate main datas
-2.DetermineKnobType (revised ver of ‘vol_change’)
-3.CalculateKnobSpinQuantity (wow such hard)
-(3-1.CheckSpecialPattern (sewing, duplex))
-4.DetermineLR (advanced version of detLR.py)
-5.CalculateHoldDecayed (with lowercase of LR and beats)
-6.CalculateHandCoordinates (center of the active buttons and knobs)
-6-1.CalculateMovement (calculation result locates at latter point)
-7.(CalculateBPMratio)
-8.AddTiming (BPM and tune size(except info) matters)
-9.DivideToInterval (cut the chart every 400ms except chart info; no use since this stage)
-(10.CalculateDifficultyFactor)
-10-1.CalculateDensity (thanks to same interval size, just sum up chip and hold_decayed plus knob_quantity) (but for precise decision, divide by its unique duration time)
-10-2.CalculateHandMoveSpeed (thanks to same interval size, just sum amount hand distance)
-10-3.(CalculateLegibility)
-11.run for all charts and output automatically
+1.Generate Main Data
+2.Determine Knob Type
+3.Calculate Knob Spin Quantity
+4.(Mark Special Pattern (knob_while_two-hand-hold, sewing, duplex))
+5.Determine LR (which hand to hit)
+6.Calculate Decayed Tick of Hold Notes
+7.Calculate Hand Movement Amount (calculation result locates at latter point)
+8.(Calculate BPM ratio)
+9.Generate Interval Division
+10.Calculate Difficulty Factor (currently the number of factor is 4)
 """
 
-#beat numerator -> the number of beats in the tune
-#beat denominator -> the number that the tune divided by. default:4 
-#example: 8/4   duration:2 tune     content:2 tune      formation:1 tune
-#       : 5/4   duration:1.25 tune  content:1.25 tune   formation:1 tune
-#       : 1/4   duration:0.25 tune  content:0.25 tune   formation:1 tune
-#       : 4/8   duration:0.50 tune  content:0.50 tune   formation:1 tune (<==> 2/4)
-#1튠이 차지하는 길이
-#다행히 튠 하나 내에선 beat가 바뀌지 않는다 (튠 내에서 바꾸면 ksh에 저장되지 않는다)
-#tune은 beat를 담는 단위.
-
-#basically, the beat fraction is irreducible if denominator is bigger than 4
-#example of charts which have various beats: soflan, -resolve-, doppelganger 
-#Aragami(guess: #15 and #16 is actually 12 tunes each with beat=1/16 and most tune has beat=3/4(=12/16))
-#변하지 않는 값은 editor에서 1박자(보통 생각하는 4분의 1튠)의 길이.
-
+import f_lib as lib
 from sys import argv
 from re import split
 from decimal import Decimal, ROUND_HALF_UP
-from fractions import Fraction
 import math
 import numpy as np
 import csv
-"""
-from os import listdir
-from os.path import isfile, join
-"""
-import os
 
-kshfiles=[]
-for (path, dir, files) in os.walk(argv[1]):
-    for filename in files:
-        ext = os.path.splitext(filename)[-1]
-        if ext == '.ksh':
-            kshfiles.append(path+'/'+filename)
+kshfiles=lib.gen_kshfiles(argv[1])
+for ksh in kshfiles:
+    csvname=open(ksh.replace('.ksh','.csv'),'w')
+    wr=csv.writer(csvname)
+    wr.writerow(["song name.", "difficulty name", "level", "section No.",
+    "sum of note density", "sub of note density", "knob density", "hand speed"])
 
-#onlyfiles = [f for f in listdir(argv[1]) if isfile(join(argv[1], f))]
-#go to very front
-w=[0.8, 0.1, .05, .5] #weight list
-difficulty_order=open(argv[1]+'/difficulty_order.csv',"w",encoding="UTF-8-sig", newline='')
-wr2=csv.writer(difficulty_order)
-
-wr2.writerow(["weight:", w])
-wr2.writerow(["song name.", "difficulty name", "level", "calculated level"])
-
-for ksh in range(len(kshfiles)):
-
-    fileobj=open(kshfiles[ksh],'rt', encoding='UTF-8-sig')
-    file_content=fileobj.read()#file_content is 'str'
-    fileobj.close()
-
-    #1.Calculate main datas
-    #split files
-    ZERO_TO_BLANK=0 #make sure run the code before 'CalculateDifficultyFactor' only if this switch is activated
-    header={}
-    cc=[]
-    lsplit=split('\n+',file_content)
-    for i in range(len(lsplit)):
-        if (lsplit[i]=='--'):
-            for j in range(i):
-                line_split=lsplit[j].split('=')
-                header[line_split[0]]=line_split[1] #0 ~ i-1
-            cc=lsplit[i:] # i ~ end
-            break
-
+    #1.Generate main datas
+    header, cc = lib.readksh(ksh)
     print("Processing", header['title'], header['difficulty'], "...")
 
     #Suppose that all ksh files ends with '--\n\n' (2 lines with sign of the tune empty)
@@ -125,18 +72,13 @@ for ksh in range(len(kshfiles)):
                     up_to_date_beat=float(beats_fraction[0]/beats_fraction[1])*4
         tunebeat.append(up_to_date_beat)
     tune_den=[tunesize[tune]-len(infoline[tune]) for tune in range(tune_total)]
-    
-    #temporary continue
-    if any([len(BPMidx[i]) for i in range(len(BPMidx))]):
-        continue
-
 
     #Generate a file proceeded to current stage
-    """
     def interim(stage):
+        import os
         filename='f'+str(stage)
-        filename=open("./ksh/"+str(stage)+"_"+
-            argv[1].replace('./ksh/',''),"w",encoding="UTF-8-sig")
+        filename=open(os.path.dirname(ksh)+'/'+str(stage)+"_"+
+        os.path.basename(ksh).replace('.ksh', '.txt'), "w", encoding="UTF-8-sig")
         for k, v in header.items():
             filename.write('{:s}={:s}'.format(k, v)+'\n')
         for tune in range(tune_total):
@@ -149,8 +91,7 @@ for ksh in range(len(kshfiles)):
                 #    filename.write('\n')
         filename.write("-------")
         filename.close()
-    """
-
+    
     #add the division mark at the end of every noteline 
     def mark(chara):
         for tune in range(tune_total):
@@ -194,12 +135,17 @@ for ksh in range(len(kshfiles)):
     for i in range(len(cc)):
         listline=list(cc[i])
         if '|' in cc[i]: #noteline
+            cc[i]
             for LorR in range(8,10):
                 listline[LorR]=newknoblist[LorR-8][i_note]
             i_note+=1
         cc[i]=''.join(listline)
+    
+    #replace division sign
+    for i in range(len(cc)):
+        cc[i]=cc[i].replace('|',',')
 
-    mark(',')
+    mark('|')
     #duplicate
     for tune in range(tune_total):
         for i in range(tunesize[tune]):
@@ -210,7 +156,7 @@ for ksh in range(len(kshfiles)):
     #3. CalculateKnobSpinQuantity
     #( knob_diff / beats_amount ) * KNOB_SCALING = spin per beats
     knobcode='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno'
-    KNOB_SCALING=1
+    KNOB_SCALING=0.04
 
     #slam knob has critical spin amount to be hit
     #between 1/5 to 1/10 of field width by simulation
@@ -241,11 +187,12 @@ for ksh in range(len(kshfiles)):
 
     def floatformat(value, obj_type):
         point, width = floatinfo(obj_type)
-        if value or not ZERO_TO_BLANK:
+        if value:
             dec=Decimal(value).quantize(Decimal(point), ROUND_HALF_UP)
             return '{:{w}.{p}f}'.format(float(dec), w=width, p=len(point)-1)
         else:
             return '{:{w}}'.format(' ', w=width)
+
     newknoblist=[]
     for LorR in range(8,10):
         # possible sign list: knobcode, - :" #
@@ -322,7 +269,7 @@ for ksh in range(len(kshfiles)):
     for i in range(len(cc)):
         if '|' in cc[i]: #noteline
             for LorR in range(8,10):
-                cc[i]+=',' if LorR==8 else ' ' #'/'
+                cc[i]+='|' if LorR==8 else ','
                 cc[i]+=floatformat(newknoblist[LorR-8][i_note],'KNOB')
             i_note+=1
 
@@ -614,7 +561,7 @@ for ksh in range(len(kshfiles)):
             print(int(16*BPMscale[i][j]), end=' ')
         print()
     """
-    mark(',')
+    mark('|')
     beats_per_tune=4.0
     for hand in BTFX:
         holdcount=0.0
@@ -640,7 +587,7 @@ for ksh in range(len(kshfiles)):
                 else: #infoline
                     i_info+=1
         if BTFX.index(hand)!=len(BTFX)-1:
-            mark(' ')
+            mark(',')
 
     #interim(5)
     #6.CalculateHandCoordinates (center of the active buttons and knobs)
@@ -780,7 +727,7 @@ for ksh in range(len(kshfiles)):
     for i in range(len(cc)):
         if '|' in cc[i]: #noteline
             for LorR in range(2):
-                cc[i]+=',' if LorR==0 else ' '
+                cc[i]+='|' if LorR==0 else ','
                 cc[i]+=floatformat(distance_list[LorR][i_note], 'HAND')
             i_note+=1
 
@@ -806,15 +753,62 @@ for ksh in range(len(kshfiles)):
     def markup(idx):
         section_index.append(idx+1)
         offset=1
+        last=False
         while True:
-            if '|' in cc[idx+offset]:
+            if idx+offset>=len(cc)-2: #no more noteline available
+                last=True
+                break
+            elif '|' not in cc[idx+offset]: #infoline
                 offset+=1
             else: break
-        cc[idx+offset]+=floatformat(time, 'TIME')
-        cc[idx+offset]+='\tNo.'+str(len(section_index)-1) #+'('+str(int(time-checkpoint))+')'
+        if not last:
+            cc[idx+offset]+=floatformat(time, 'TIME')
+            cc[idx+offset]+='\tNo.'+str(len(section_index)-1) #+'('+str(int(time-checkpoint))+')'
         if idx!=-1: #except for very first idx
             section_duration.append(time-checkpoint)
 
+    def timer(tune_num, BPMidx_placeholder=0):
+        global time
+        global checkpoint
+        time_unit=duration(BPM)*beats_per_tune*(1/tune_den[tune])
+        i_note=0
+        i_info=0
+        while i_note!=tune_num:
+            if BPMidx_placeholder+i_note+i_info in infoline[tune]:
+                i_info+=1
+            else:
+                time+=time_unit
+                #if (time-checkpoint)>=INTERVAL: #possible to enhance the condition to allow less than INTERVAL
+                if time-len(section_index)*INTERVAL>=0:
+                    markup(tuneindex[tune]+BPMidx_placeholder+i_note+i_info)
+                    checkpoint=time
+                i_note+=1
+                
+    mark(',')
+    #for markup first section
+    markup(-1)
+    for tune in range(tune_total):
+        beats_per_tune=tunebeat[tune]
+        if len(BPMidx[tune]):
+            #if any noteline exists from first BPM change in tune
+            if any(i not in infoline[tune] for i in range(BPMidx[tune][0])):
+                tune_num=0
+                for i in range(BPMidx[tune][0]):
+                    if i not in infoline[tune]:
+                        tune_num+=1
+                timer(tune_num)
+
+            for i in range(len(BPMidx[tune])):
+                BPM=float(cc[tuneindex[tune]+BPMidx[tune][i]].split('=')[1])
+                endpoint=tunesize[tune] if i>=len(BPMidx[tune])-1 else BPMidx[tune][i+1]
+                tune_num=0
+                for j in range(BPMidx[tune][i], endpoint):
+                    if j not in infoline[tune]:
+                        tune_num+=1
+                timer(tune_num, BPMidx[tune][i])
+        else:
+            timer(tune_den[tune])
+    """
     mark(',')
     #for markup first section
     markup(-1)
@@ -877,6 +871,7 @@ for ksh in range(len(kshfiles)):
                         markup(tuneindex[tune]+i_note+i_info)
                         checkpoint=time
                     i_note+=1
+    """
 
     section_size=[section_index[i+1]-section_index[i] for i in range(len(section_index)-1)]
     section_size.append(len(cc)-section_index[-1])
@@ -892,20 +887,20 @@ for ksh in range(len(kshfiles)):
             if section_index[-1]<len(cc)-1-offset:      
                 break
     """
-    #interim(7)
+    interim(7)
     #10.CalculateDifficultyFactor
     #CalculateDensity #CalculateHandMoveSpeed
-    
-    difficulty_score=[]
+
+    #difficulty_score=[]
     for ith_sect in range(len(section_index)):
         #difficulty_score.append([])
         holdchip=[0,0] #for giving advantage of density bias in hands
-        movement=0
         knobspin=0
+        movement=0
         for i in range(section_size[ith_sect]):
             if '|' not in cc[section_index[ith_sect]+i]: #infoline
                 continue
-            line_split=cc[section_index[ith_sect]+i].split(',')
+            line_split=cc[section_index[ith_sect]+i].split('|')
             #0:main  1:knob status  2:knob quantity  
             #3:hold_decayed  4:hand distance  5:time info
             for LorR in range(2):
@@ -913,17 +908,23 @@ for ksh in range(len(kshfiles)):
                 holdchip[LorR]+=essence.count('LR'[LorR]) #chip
                 for hand in BTFX:
                     if essence[hand]=='lr'[LorR]: #hold
-                        holdchip[LorR]+=float((line_split[3].split())[BTFX.index(hand)])
-            movement+=sum(float(line_split[4].split()[j]) for j in range(len(line_split[4].split())))
-            knobspin+=sum(abs(float(line_split[2].split()[j])) for j in range(len(line_split[2].split())))
+                        holdchip[LorR]+=float((line_split[3].split(','))[BTFX.index(hand)])
+            #print(line_split[2].split(','))
+            
+            knobspin+=sum(abs(float(line_split[2].split(',')[j])) for j in range(2) if line_split[2].split(',')[j].strip())
+            movement+=sum(float(line_split[4].split(',')[j]) for j in range(2) if line_split[4].split(',')[j].strip())
         holdchip_sum=sum(holdchip)
         holdchip_sub=abs(holdchip[0]-holdchip[1])
+        wr.writerow([[ith_sect, holdchip_sum, holdchip_sub, knobspin, movement]])
+        (["song name.", "difficulty name", "level", 
+    "sum of note density", "sub of note density", "knob density", "hand speed"])
         """
         for LorR in range(2):
             difficulty_score.append(holdchip[LorR]/section_duration[ith_sect])
         difficulty_score.append(movement/section_duration[ith_sect])
         difficulty_score.append(knobspin/section_duration[ith_sect])
         """
+    """
         difficulty_score.append(sum([holdchip_sum*w[0],holdchip_sub*w[1],movement*w[2],knobspin*w[3]]))
     difficulty_score_sorted=difficulty_score.copy()
     difficulty_score_sorted.sort(reverse=True)
@@ -931,6 +932,7 @@ for ksh in range(len(kshfiles)):
     DIFFICULTY_SCALING=0.8
     difficulty_result=sum([difficulty_score[i]*DECAY_FACTOR**i for i in range(len(difficulty_score))])*DIFFICULTY_SCALING
     #print(header['title'], header['difficulty'], ": ", difficulty_result)
+    """
 
     """
     section_score=open("./ksh/"+"section_score_"+
@@ -942,7 +944,6 @@ for ksh in range(len(kshfiles)):
         difficulty_score_sorted[i], DECAY_FACTOR**i, difficulty_score_sorted[i]*DECAY_FACTOR**i])
     """
 
-    wr2.writerow([header['title'], header['difficulty'], header['level'], difficulty_result])
     #후에 learning 돌릴때
     #모델 구조, '3차'
     # 1. 모델 식 그자체. 어떤 식을 쓸건지
