@@ -1,4 +1,4 @@
-import function_lib as lib
+import f_lib as lib
 from sys import argv
 import os
 import csv
