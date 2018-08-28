@@ -1,21 +1,12 @@
-#beat_fraction divide by 0
 #노브에서 매번 손이동 한것으로 계산됨
+
+#scaling, factor 모아보기 #factor는 외부 파일에서 import하는 형식으로
+#주석정리
 
 #Nullity 나왔을 때 대처 (3-1에서 앞서 감지)
 #1.홀드면 --> 홀드를 한손으로.
 #2.노트면 --> 노브 보정 등을 기대하여 노브 조작 X
-
-#scaling, factor 모아보기
-#주석정리
-
-#노브방향 바뀔때 strain 추가 with gradient
-"""
-앞 노브 전체 회전량의 절반
-(직각이면 상수의 0.75배)
-직각 duration만큼에 대하여 선형분배 (duration보다 짧으면 첫 라인에 몰아넣기)
-빈칸 존재하면 리셋
-주차가 1박자 이상 존재하면 리셋 (튠넘어가는 경우 총합 박자)
-"""
+#한편, Nullity가 잘 작동하고 있지 않은듯.
 
 #Generate difficulty factor in each interval of each chart with csv format 
 """
@@ -43,12 +34,12 @@ kshfiles=lib.gen_kshfiles(argv[1])
 for ksh in kshfiles:
     csvname=open(ksh.replace('.ksh','.csv'),'w')
     wr=csv.writer(csvname)
-    wr.writerow(["song name.", "difficulty name", "level", "section No.",
+    wr.writerow(["song name", "difficulty name", "level", "section No.",
     "sum of note density", "sub of note density", "knob density", "hand speed"])
 
-    #1.Generate main datas
+    #1.Generate Main Data
     header, cc = lib.readksh(ksh)
-    print("Processing", header['title'], header['difficulty'], "...")
+    #print("Processing", header['title'], header['difficulty'], "...")
 
     #Suppose that all ksh files ends with '--\n\n' (2 lines with sign of the tune empty)
     tuneindex=[i for i, line in enumerate(cc) if line=='--'] #ith: first line number at ith tune
@@ -100,46 +91,47 @@ for ksh in kshfiles:
                     cc[tuneindex[tune]+i]+=chara
 
     #interim(1)
-    #2. DetermineKnobType
+    #2.Determine Knob Type
+    knobcode='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno'
     newknoblist=[]
     for LorR in range(8,10):
         prev='-'
         newknob=''
-        tune=-1
         coloncount=0
-        for line in cc:
-            if '|' not in line: #not a noteline
-                if line=='--':
-                    tune+=1
-                continue
-            if line[LorR]==':':
-                coloncount+=1
-            else:
-                if prev!='-': #Determine
-                    if line[LorR]==prev: #stay knob
-                        newknob+='"'*coloncount
-                    elif (coloncount+1)/(tune_den[tune]/tunebeat[tune])==1/8: #slam knob
-                        #this condition could not cover the case:
-                        #slam knob spread over 2 tunes which tune_den is not same
-                        #but the case is too rare to affect difficulty
-                        newknob+='#'*coloncount 
-                    else: #active line knob
-                        newknob+=':'*coloncount 
-                newknob+=line[LorR]
-                prev=line[LorR]
-                coloncount=0
+        for tune in range(tune_total):
+            for i in range(tunesize[tune]):
+                line=cc[tuneindex[tune]+i]
+                if i not in infoline[tune]:
+                    if line[LorR]==':':
+                        coloncount+=1
+                    else:
+                        if line[LorR]!='-' and prev!='-': #Determine
+                            if (coloncount+1)/(tune_den[tune]/tunebeat[tune])==1/8: #slam knob
+                                #this condition could not cover the case:
+                                #slam knob spread over 2 tunes which tune_den is not same
+                                #but the case is too rare to affect difficulty
+                                newknob+='#'*coloncount 
+                            #if line[LorR]==prev: #stay knob
+                            elif abs(knobcode.index(line[LorR])-knobcode.index(prev))<=1: #stay knob
+                                newknob+='"'*coloncount
+                            else: #active line knob
+                                newknob+=':'*coloncount 
+                        newknob+=line[LorR]
+                        prev=line[LorR]
+                        coloncount=0
         newknoblist.append(newknob)
 
     #replace
     i_note=0
-    for i in range(len(cc)):
-        listline=list(cc[i])
-        if '|' in cc[i]: #noteline
-            cc[i]
-            for LorR in range(8,10):
-                listline[LorR]=newknoblist[LorR-8][i_note]
-            i_note+=1
-        cc[i]=''.join(listline)
+    for tune in range(tune_total):
+        for i in range(tunesize[tune]):
+            listline=list(cc[tuneindex[tune]+i])
+            if '|' in listline: #noteline
+                #print(tune, i, listline)
+                for LorR in range(8,10):
+                    listline[LorR]=newknoblist[LorR-8][i_note]
+                i_note+=1
+            cc[tuneindex[tune]+i]=''.join(listline)
     
     #replace division sign
     for i in range(len(cc)):
@@ -153,9 +145,9 @@ for ksh in kshfiles:
                 cc[tuneindex[tune]+i]+=cc[tuneindex[tune]+i][8:10]
 
     #interim(2)
-    #3. CalculateKnobSpinQuantity
+    #3.Calculate Knob Spin Quantity
     #( knob_diff / beats_amount ) * KNOB_SCALING = spin per beats
-    knobcode='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno'
+    
     KNOB_SCALING=0.04
 
     #slam knob has critical spin amount to be hit
@@ -218,7 +210,6 @@ for ksh in kshfiles:
                         if prev!='-': #End of the knob
                             #"no" add for last unit
                             #colon_count[-1]+=1 
-
                             #make exact number of space to each tune
                             for j in range(len(colon_count)):
                                 fraction=beats_per_tune*(colon_count[j]/tune_den[tune-(len(colon_count)-1)+j])
@@ -274,7 +265,10 @@ for ksh in kshfiles:
             i_note+=1
 
     #interim(3)
-    #4. DetermineLR
+    #4.(Mark Special Pattern (knob_while_two-hand-hold, sewing, duplex))
+
+    #5.Determine LR (which hand to hit)
+
     #English
     """
     #Determine which hand to hit with, as every valid sign
@@ -372,6 +366,7 @@ for ksh in kshfiles:
                         # 0::a: 'lr' (2nd prior)
                         # 0""a: '  '   
                         # ----: '  '
+                        #no put hand sign in very last knob
                         free=0
                         capital=False
                         if listline[hand]=='#':
@@ -391,7 +386,8 @@ for ksh in kshfiles:
                             prev_next[hand-8]+=cc[idx+line_offset][hand]
                             if '#' in prev_next[hand-8]:
                                 capital=True
-                            elif prev_next[hand-8] in ['-"','"-','""']:
+                            #elif prev_next[hand-8] in ['-"','"-','""']:
+                            elif prev_next[hand-8][-1] in '-"':
                                 free=1
                             
                         prev_next[hand-8]=listline[hand]
@@ -452,16 +448,18 @@ for ksh in kshfiles:
             hold_begin[tune].append(hold_begin_line)
 
     if Nullity_BTFX_while_all_KNOB_on:
+        print("Processing", header['title'], header['difficulty'], "...")
+        print("Nullity detected! Nullity_BTFX_while_all_KNOB_on: ", Nullity_BTFX_while_all_KNOB_on)
         continue
-        #print("Nullity detected! Nullity_BTFX_while_all_KNOB_on: ", Nullity_BTFX_while_all_KNOB_on)
+        
 
-    #interim(4)
-    #5.CalculateHoldDecayed (with lowercase of LR and timing)
-    # total holding(holdcount) function: y=a*x^b (x: time), (a>0, 0<b<=1)    #put it at front 
-    #홀드 중간에 BPM이 바뀌면. ->상관없음
+    #interim(5)
+    #6.Calculate Decayed Tick of Hold Notes
+    #hold tick function: y=a*x^b (x: time), (a>0, 0<b<=1)
+    #no matter whether BPM change while hold is active: let it be
 
     #The bigger HOLD_DECAY_EXP, the faster holding decays.
-    #default:2, range: HOLD_DECAY_EXP>=1    #argv[x] soon
+    #default:2, range: HOLD_DECAY_EXP>=1 
     HOLD_DECAY_EXP=2
 
     #Set hold tick value per one beat
@@ -469,25 +467,29 @@ for ksh in kshfiles:
     #Currently 1.5 holdtick per one (tune)beat
     HOLD_TICK_PER_ONE_BEAT=3/2
 
-    #scaling: 홀드 비트 수 뻥튀기 방지
-    #scaling: Make sure the number of beats is limited in 9 ~ 16 in each tune except empty tune
-    #if beats are too much to its original BPM (ex. 32beats), scales BPM up to double (ex. EMPIRE OF FLAME)
-    #similarly, if beats are too less to its origianl BPM (ex. 4beats), scales BPM down to half (ex. CHOU CHOU KOU SOKU)
-    #example: BPM 999 with 4 beats per tune --> BPM 249.75 with 16 beats per tune 
-    #         BPM 114 with 32 beats per tune --> BPM 228 with 16 beats per tune
-    #         BPM 161 with 32 beats per tune --> BPM 322 with 16 beats per tune
-    #knobs don't affect at counting beats, because this is only for holdtick
-    #if BPM is scaled down, duration per one beat increased, which means the amount of hold beats(holding) is decreased. v.v.
-    #this scaling is only for calculating holdtick, but possible to expand this idea to other stage
+    """
+    Scaling: the property of beat assessed with its actual beat count
+    If beats are too much to its original BPM (ex. 32 beats), scales BPM up to double (ex. EMPIRE OF FLAME).
+    Similarly, if beats are too less to its origianl BPM (ex. 4 beats), scales BPM down to half (ex. CHOU CHOU KOU SOKU).
+    Example: 
+        BPM 999 with 4 beats per tune --> BPM 249.75 with 16 beats per tune 
+        BPM 114 with 32 beats per tune --> BPM 228 with 16 beats per tune
+        BPM 161 with 32 beats per tune --> BPM 322 with 16 beats per tune
+    
+    Currently default of beat count is '16 beats per 4 beat-time(per 1 tune)', a.k.a. "16 beats".
+    Hold object is scaled with each beat's scaling value.
+    If a beat is scaled down, duration per one beat increased, 
+    which means the amount of hold beats(holding) is decreased. v.v.
+    
+    Currently knobs are ignored to counting actual beat count.
+    (Possible to consider it as 'knob beat' with counting knob turnabout(knob direction switch)
+
+    This scaling is only for calculating holdtick, but possible to expand this idea to other stage.
+    """
 
     def holdbeat(lower, upper):
         holdbeat_integral=lambda ith_beat: HOLD_TICK_PER_ONE_BEAT*ith_beat**(1/HOLD_DECAY_EXP)
         return holdbeat_integral(upper)-holdbeat_integral(lower)
-
-    #scaling
-        #knob doesn't count in this stage; only non-knob matters
-        #default beats is '16beats per 4 beat-time(per 1 tune)'
-        #possible to consider 'knob beat' with counting knob turnabout(knob direction switch)
 
     BPMscale=[]
     for tune in range(tune_total):
@@ -589,10 +591,8 @@ for ksh in kshfiles:
         if BTFX.index(hand)!=len(BTFX)-1:
             mark(',')
 
-    #interim(5)
-    #6.CalculateHandCoordinates (center of the active buttons and knobs)
-    #6-1.CalculateMovement (calculation result locates at latter point)
-    #same format from knob quantity calculation
+    #interim(6)
+    #7.Calculate Hand Movement Amount (calculation result locates at latter point)
 
     #4 BTs, 2 FXes, 2 knobs, start
     xy=((-9,2),(-3,2),(3,2),(9,2),(-6,-4),(6,-4),(-14,7.5),(14,7.5),(0,8))
@@ -629,7 +629,7 @@ for ksh in kshfiles:
         hand_queue=[]
         center_point_prev=np.array([])
         center_point=major_center[LorR] #topologically same to 'knobcode'
-        colon_count=[0] #not to delete last one element of the list
+        colon_count=[1] #not to delete last one element of the list
         beat_fraction=[]
         for tune in range(tune_total):
             beats_per_tune=tunebeat[tune]
@@ -672,6 +672,7 @@ for ksh in kshfiles:
                                 if any([Nullity_check[k] not in nearby(Nullity_check[j])]):
                                     find=True
                                     Nullity_cannot_cover_with_one_hand+=1
+                                    print(tune, i, Nullity_check)
                                     break
                             if find: break #break double loop at once 
 
@@ -691,12 +692,11 @@ for ksh in kshfiles:
                         for j in range(len(colon_count)):
                             fraction=beats_per_tune*(colon_count[j]/tune_den[tune-(len(colon_count)-1)+j])
                             beat_fraction.append(fraction)
-                        
                         #calculate the amount of distance in each line
                         for j in range(len(colon_count)):
                             #temporary fixfix
-                            if sum(beat_fraction)==0:
-                                beat_fraction.append(0.25)
+                            #if sum(beat_fraction)==0:
+                            #    beat_fraction.append(0.25)
                             dist_ratio=beat_fraction[j]/sum(beat_fraction)
                             remain=dist_ratio*hand_dist
                             for k in range(colon_count[j]): #special calculate method to reduce value loss
@@ -721,7 +721,6 @@ for ksh in kshfiles:
                 colon_count.append(0)
         distance_list.append(distance)
 
-    #print(len(distance_list[1]),sum([tune_den[tune] for tune in range(tune_total)]))
     #add hand distance amount to chart
     i_note=0
     for i in range(len(cc)):
@@ -732,13 +731,16 @@ for ksh in kshfiles:
             i_note+=1
 
     if Nullity_cannot_cover_with_one_hand:
+        print("Nullity at", header['title'], header['difficulty'], "...")
         print("Nullity detected! Nullity_cannot_cover_with_one_hand: ", Nullity_cannot_cover_with_one_hand)
 
-    #interim(6)
-    #7.AddTiming (BPM and tune size(except info) matters)
-    #9.DivideToInterval (cut the chart every 400ms except chart info; no use since this stage)
+    #interim(7)
+    #8.(Calculate BPM ratio)
+
+    #interim(8)
+    #9.Generate Interval Division
     #timing in each line indicates 'the time right after the line has passed'
-    #새로운 interval마다 n번째, 시간 표시
+    #show the time for every new interval is set
 
     beats_per_tune=4.0
     BPM=1 #Beats Per Minute
@@ -808,88 +810,13 @@ for ksh in kshfiles:
                 timer(tune_num, BPMidx[tune][i])
         else:
             timer(tune_den[tune])
-    """
-    mark(',')
-    #for markup first section
-    markup(-1)
-    for tune in range(tune_total):
-        beats_per_tune=tunebeat[tune]
-        if len(BPMidx[tune]):
-            no_BPM_change_at_start=any(i not in infoline[tune] for i in range(BPMidx[tune][0]))
-            #if BPM no change from previous tune
-            if no_BPM_change_at_start: 
-                tune_num=0
-                for j in range(BPMidx[tune][0]):
-                    if j not in infoline[tune]:
-                        tune_num+=1
-                time_unit=duration(BPM)*beats_per_tune*(1/tune_den[tune])
-                i_note=0
-                i_info=0
-                while i_note!=tune_num:
-                    if i_note+i_info in infoline[tune]:
-                        i_info+=1
-                    else:
-                        time+=time_unit
-                        #if (time-checkpoint)>=INTERVAL: #possible to enhance the condition to allow less than INTERVAL
-                        if time-len(section_index)*INTERVAL>=0:
-                            markup(tuneindex[tune]+i_note+i_info)
-                            checkpoint=time
-                        i_note+=1
-
-            for i in range(len(BPMidx[tune])):
-                BPM=float(cc[tuneindex[tune]+BPMidx[tune][i]].split('=')[1])          
-                if i<len(BPMidx[tune])-1:
-                    endpoint=BPMidx[tune][i+1]
-                else:
-                    endpoint=tunesize[tune]
-                tune_num=0
-                for j in range(BPMidx[tune][i], endpoint):
-                    if j not in infoline[tune]:
-                        tune_num+=1
-                time_unit=duration(BPM)*beats_per_tune*(1/tune_den[tune])
-                i_note=0
-                i_info=0
-                while i_note!=tune_num:
-                    if BPMidx[tune][i]+i_note+i_info in infoline[tune]:
-                        i_info+=1
-                    else:
-                        time+=time_unit
-                        if time-len(section_index)*INTERVAL>=0: #possible to enhance the condition to allow less than INTERVAL
-                            markup(tuneindex[tune]+BPMidx[tune][i]+i_note+i_info)
-                            checkpoint=time
-                        i_note+=1
-        else:
-            time_unit=duration(BPM)*beats_per_tune/tune_den[tune]
-            i_note=0
-            i_info=0
-            while i_note!=tune_den[tune]:
-                if i_note+i_info in infoline[tune]:
-                    i_info+=1
-                else:
-                    time+=time_unit
-                    if time-len(section_index)*INTERVAL>=0: #possible to enhance the condition to allow less than INTERVAL
-                        markup(tuneindex[tune]+i_note+i_info)
-                        checkpoint=time
-                    i_note+=1
-    """
+    section_duration.append(time-checkpoint) #wrap up with last section
 
     section_size=[section_index[i+1]-section_index[i] for i in range(len(section_index)-1)]
     section_size.append(len(cc)-section_index[-1])
 
-    #to wrap up last section
-    section_duration.append(time-checkpoint)
-    """
-    offset=0
-    while True:
-        if '|' not in cc[len(cc)-1-offset]:
-            offset+=1
-        else:
-            if section_index[-1]<len(cc)-1-offset:      
-                break
-    """
-    interim(7)
-    #10.CalculateDifficultyFactor
-    #CalculateDensity #CalculateHandMoveSpeed
+    #interim(9)
+    #10.Calculate Difficulty Factor (currently the number of factor is 4)
 
     #difficulty_score=[]
     for ith_sect in range(len(section_index)):
@@ -909,15 +836,13 @@ for ksh in kshfiles:
                 for hand in BTFX:
                     if essence[hand]=='lr'[LorR]: #hold
                         holdchip[LorR]+=float((line_split[3].split(','))[BTFX.index(hand)])
-            #print(line_split[2].split(','))
             
             knobspin+=sum(abs(float(line_split[2].split(',')[j])) for j in range(2) if line_split[2].split(',')[j].strip())
             movement+=sum(float(line_split[4].split(',')[j]) for j in range(2) if line_split[4].split(',')[j].strip())
         holdchip_sum=sum(holdchip)
         holdchip_sub=abs(holdchip[0]-holdchip[1])
-        wr.writerow([[ith_sect, holdchip_sum, holdchip_sub, knobspin, movement]])
-        (["song name.", "difficulty name", "level", 
-    "sum of note density", "sub of note density", "knob density", "hand speed"])
+        wr.writerow([ith_sect, holdchip_sum, holdchip_sub, knobspin, movement])
+
         """
         for LorR in range(2):
             difficulty_score.append(holdchip[LorR]/section_duration[ith_sect])
