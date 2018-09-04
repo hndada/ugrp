@@ -1,12 +1,14 @@
-#노브에서 매번 손이동 한것으로 계산됨
-
-#scaling, factor 모아보기 #factor는 외부 파일에서 import하는 형식으로
-#주석정리
-
 #Nullity 나왔을 때 대처 (3-1에서 앞서 감지)
 #1.홀드면 --> 홀드를 한손으로.
 #2.노트면 --> 노브 보정 등을 기대하여 노브 조작 X
 #한편, Nullity가 잘 작동하고 있지 않은듯.
+
+#노브에서 매번 손이동 한것으로 계산됨
+
+#각 w의 scaling 맞추기 with sample ksh files (illness lilin으로 손이동 스케일링, 작열로 노브 스케일링 * 1.15 (아직 토크 반영안됨))
+
+#factor는 외부 파일에서 import하는 형식으로
+#configparser
 
 #Generate difficulty factor in each interval of each chart with csv format 
 """
@@ -29,6 +31,20 @@ from decimal import Decimal, ROUND_HALF_UP
 import math
 import numpy as np
 import csv
+
+KNOB_SCALING=0.04
+HAND_SCALING=1
+
+#The bigger HOLD_DECAY_EXP, the faster holding decays.
+#default:2, range: HOLD_DECAY_EXP>=1 
+HOLD_DECAY_EXP=2
+
+#Set hold tick value per one beat
+#1.5 or 1, or else
+#Currently 1.5 holdtick per one (tune)beat
+HOLD_TICK_PER_ONE_BEAT=3/2
+
+INTERVAL=400
 
 kshfiles=lib.gen_kshfiles(argv[1])
 for ksh in kshfiles:
@@ -148,7 +164,7 @@ for ksh in kshfiles:
     #3.Calculate Knob Spin Quantity
     #( knob_diff / beats_amount ) * KNOB_SCALING = spin per beats
     
-    KNOB_SCALING=0.04
+    
 
     #slam knob has critical spin amount to be hit
     #between 1/5 to 1/10 of field width by simulation
@@ -265,10 +281,131 @@ for ksh in kshfiles:
             i_note+=1
 
     #interim(3)
-    #4.(Mark Special Pattern (knob_while_two-hand-hold, sewing, duplex))
+    #4.Mark Special Pattern
+    #currently available: spare (spare hand from holds for soon knob)
+    #soon update: sewing, duplex
 
+    #맨 처음만 잘잡아주면 나머지는 holdon됨
+    #끝나기 전까지 노브 등장 있으면 1
+    #이 신호가 있으면 노브와 동시에 시작하는 것처럼 작동 
+    #예: 홀드 시작에 직각 노브 있는 듯이
+    #홀드 하는 동안 등장하는 노브들 중 마지막 것이 동시에 시작하는 것처럼.
+
+    #시작에 다른 노브가 없을 때
+    #hold on 이 켜져있는 동안 노브가 등장할 경우
+    #해당 hold begin index에 knonon, knobside 입력
+    #최종으로 마지막 것을 갖게 holdon 켜져있는 동안에는 knobside 계속 갱신 
+    #hold begin은 여기서 계산하는 걸로 들고오기
+    #hold on은 각 스테이지에서 중복 계산
+    BTFX=[0,1,2,3,5,6]
+    KNOB=[8,9]
+
+    holdon=[0]*6 #check if the hold is already on(active)
+
+    def check_signal(hold_check=True, knob_check=True):
+        if hold_check:
+            if any([holdon[x] for x in range(len(holdon))]):
+                for j in range(len(BTFX)):
+                    if listline[BTFX[j]]!=check_code('hold',BTFX[j]):
+                        holdon[j]=0
+                        holdside[j]='N'
+        if knob_check:
+            if any([knobon[x] for x in range(len(knobon))]):
+                for x in KNOB:
+                    if listline[x] in '-"':
+                        knobon[x-8]=0
+                        knobside[x-8]='N'
+
+    hold_begin=[] #for one of progress in No.5 stage: determine actual BPM
+    for tune in range(tune_total):
+        hold_begin.append([])
+        for i in range(tunesize[tune]):
+            hold_begin_line=[0]*6 #only this list has element of infoline; for compatibility to hold_decayed
+            if i not in infoline[tune]:
+                check_signal(knob_check=False)
+                for hand in BTFX:
+                    if listline[hand]!='0':                         
+                        if listline[hand]==check_code('hold', hand):
+                            hold_begin_line[BTFX.index(hand)]=1 if holdon[BTFX.index(hand)]==0 else 0
+                            holdon[BTFX.index(hand)]=1
+            hold_begin[tune].append(hold_begin_line)
+            
+    ##################
+    """
+    def knob_active(tune, i):
+        result=[]
+        for hand in KNOB:
+            if cc[tuneindex[tune]+i][hand] in '"-': result.append(False)
+            elif cc[tuneindex[tune]+i][hand] in ':#': result.append(True)
+            elif listline[hand] in knobcode: 
+                line_offset=1
+                tune_offset=0
+                idx=tuneindex[tune]+i
+                while True: #next knob 
+                    if idx+line_offset >= tuneindex[(tune+1)+tune_offset]:
+                        tune_offset+=1
+                    else: pass
+                    if idx+line_offset-tuneindex[tune+tune_offset] in infoline[tune+tune_offset]:
+                        line_offset+=1
+                    else: break
+
+                #suppose only next knob sign matters
+                if cc[idx+line_offset][hand] in '-"':
+                    #this condition can't cover this case:
+                    #'AA' (that is, very short stay knob)
+                    #But could fix with small effort and it barely appears.
+                    result.append(False)
+                else: result.append(True)
+
+            else: print("Error! Blank letter in knob line")
+        return result
+    """
+    def knob_active(idx):
+        result=[]
+        for hand in KNOB:
+            if cc[idx][hand] in '"-': result.append(False)
+            elif cc[idx][hand] in ':#': result.append(True)
+            elif cc[idx][hand] in knobcode:
+                line_offset=1 #positive offset; suppose only next knob sign matters
+                while '|' not in cc[idx+line_offset]: line_offset+=1
+                if cc[idx+line_offset][hand] in '-"':
+                    #this condition can't cover this case:
+                    #'AA' (that is, very short stay knob)
+                    #But could fix with small effort and it barely appears.
+                    result.append(False)
+                else: result.append(True)
+            else: print("Error! Blank letter in knob line")
+        return result
+
+    hold_in_one={}
+    for tune in range(tune_total):
+        for i in range(tunesize[tune]):
+            if i not in infoline[tune]:
+                #at least 1 hold object exists in both side
+                #at least 1 hold object starts at this line
+                #no any knob starts at this line
+                hold_in_both_side=lambda idx: all(any(cc[idx][x]==check_code('hold', x)
+                                        for x in LRhand) for LRhand in ([0,1,5],[2,3,6]))
+                if hold_in_both_side(tuneindex[tune]+i) and any(hold_begin[tune][x] for x in BTFX
+                ) and not any(knob_active(tuneindex[tune]+i)):
+                    offset=1
+                    while True:
+                        if '|' not in cc[tuneindex[tune]+i+offset]:
+                            offset+=1
+                            continue
+                        
+                        for knob_hand in range(2):
+                            if knob_active(tuneindex[tune]+i+offset)[knob_hand]:
+                                hold_in_one[(tune,i)]=['L','R'][knob_hand]
+                                break
+
+                        #loop until hold_in_both_side
+                        if not hold_in_both_side(tuneindex[tune]+i+offset):
+                            break
+    
+
+    #interim(4)
     #5.Determine LR (which hand to hit)
-
     #English
     """
     #Determine which hand to hit with, as every valid sign
@@ -299,14 +436,7 @@ for ksh in kshfiles:
     #노브있으나 홀드off이면(즉, 동시에 시작함) 노브 손 기본값, 홀드를 반대손으로 처리
     #한번 홀드on하면 끝날때까지 손을 바꾸지 않음.
     """
-
-    holdon=[0]*6 #check if the hold is already on(active)
-    holdside=['N']*6 #L/R: Left/Right   B:Both; also granted when other hand is free    N:Nullity; something went wrong
-    knobon=[0]*2 #check if the knob is already on(active)
-    knobside=['N']*2
-    BTFX=[0,1,2,3,5,6]
-    KNOB=[8,9]
-
+    
     def otherside(hand, side, capital):
         if side in 'Ll':
             return 'R' if capital else 'r'
@@ -338,26 +468,19 @@ for ksh in kshfiles:
             if hand in [5,6]:
                 return '1'
 
-    hold_begin=[] #for one of progress in No.5 stage: determine actual BPM
-    prev_next=['-']*2
+    holdon=[0]*6 #check if the hold is already on(active)
+    holdside=['N']*6 #L/R: Left/Right   B:Both; also granted when other hand is free    N:Nullity; something went wrong
+    knobon=[0]*2 #check if the knob is already on(active)
+    knobside=['N']*2
+    
+    prev_next=['-','-'] #Left / Right
     Nullity_BTFX_while_all_KNOB_on=0
     for tune in range(tune_total):
-        hold_begin.append([])
         for i in range(tunesize[tune]):
-            hold_begin_line=[0]*6 #only this list has element of infoline; for compatibility to hold_decayed
             if i not in infoline[tune]:
                 listline=list(cc[tuneindex[tune]+i][:10]) #1111|00|--
-                #check the switches
-                if any([holdon[x] for x in range(len(holdon))]):
-                    for j in range(len(BTFX)):
-                        if listline[BTFX[j]]!=check_code('hold',BTFX[j]):
-                            holdon[j]=0
-                            holdside[j]='N'
-                if any([knobon[x] for x in range(len(knobon))]):
-                    for x in KNOB:
-                        if listline[x] in '-"':
-                            knobon[x-8]=0
-                            knobside[x-8]='N'
+                check_signal()
+
                 #scan the line
                 hand=8
                 while hand!=7:
@@ -390,7 +513,7 @@ for ksh in kshfiles:
                             elif prev_next[hand-8][-1] in '-"':
                                 free=1
                             
-                        prev_next[hand-8]=listline[hand]
+                        prev_next[hand-8]=listline[hand] #update for next line
                         if listline[hand] not in '-"' and not free:
                             for j in range(len(holdon)):
                                 if holdon[j]: #if hold already exist
@@ -445,27 +568,17 @@ for ksh in kshfiles:
                             listline[hand]=' '
                     hand=(hand+1)%10
                 cc[tuneindex[tune]+i]=''.join(listline+list(cc[tuneindex[tune]+i][10:]))
-            hold_begin[tune].append(hold_begin_line)
+            
 
     if Nullity_BTFX_while_all_KNOB_on:
         print("Processing", header['title'], header['difficulty'], "...")
         print("Nullity detected! Nullity_BTFX_while_all_KNOB_on: ", Nullity_BTFX_while_all_KNOB_on)
         continue
-        
 
     #interim(5)
     #6.Calculate Decayed Tick of Hold Notes
     #hold tick function: y=a*x^b (x: time), (a>0, 0<b<=1)
     #no matter whether BPM change while hold is active: let it be
-
-    #The bigger HOLD_DECAY_EXP, the faster holding decays.
-    #default:2, range: HOLD_DECAY_EXP>=1 
-    HOLD_DECAY_EXP=2
-
-    #Set hold tick value per one beat
-    #1.5 or 1, or else
-    #Currently 1.5 holdtick per one (tune)beat
-    HOLD_TICK_PER_ONE_BEAT=3/2
 
     """
     Scaling: the property of beat assessed with its actual beat count
@@ -621,7 +734,7 @@ for ksh in kshfiles:
     major_hand={'Ll':(0,1,5), 'Rr':(2,3,6)}
     major_center={LorR:center(major_hand[LorR]) for LorR in ['Ll', 'Rr']}
 
-    HAND_SCALING=1
+    
     Nullity_cannot_cover_with_one_hand=0 #can only be checked after LR determined
     distance_list=[]
     for LorR in ['Ll', 'Rr']:
@@ -748,7 +861,7 @@ for ksh in kshfiles:
         BPM=float(header['t'])
     duration=lambda BPM: 60*1000/BPM
     time=0.0
-    INTERVAL=400
+
     checkpoint=0.0
     section_index=[] #indice of first line of each section
     section_duration=[]
