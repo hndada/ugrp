@@ -1,15 +1,18 @@
 #Nullity 나왔을 때 대처 (3-1에서 앞서 감지)
 #1.홀드면 --> 홀드를 한손으로.
 #2.노트면 --> 노브 보정 등을 기대하여 노브 조작 X
-#한편, Nullity가 잘 작동하고 있지 않은듯.
 
 #노브에서 매번 손이동 한것으로 계산됨
 
-#각 w의 scaling 맞추기 with sample ksh files (illness lilin으로 손이동 스케일링, 작열로 노브 스케일링 * 1.15 (아직 토크 반영안됨))
+#밀도 더할때 interval 로 나누기
 
-#factor는 외부 파일에서 import하는 형식으로
-#configparser
+#한편, Nullity가 잘 작동하고 있지 않은듯.
 
+#file read fail in Matlab due to files' weird name
+
+#Model change (ex. change the order from 1 to n, between 1~2 <-Would be work btw?)
+
+#========================================================================================
 #Generate difficulty factor in each interval of each chart with csv format 
 """
 1.Generate Main Data
@@ -32,7 +35,7 @@ import math
 import numpy as np
 import csv
 
-KNOB_SCALING=0.04
+KNOB_SCALING=0.09
 HAND_SCALING=1
 
 #The bigger HOLD_DECAY_EXP, the faster holding decays.
@@ -44,18 +47,27 @@ HOLD_DECAY_EXP=2
 #Currently 1.5 holdtick per one (tune)beat
 HOLD_TICK_PER_ONE_BEAT=3/2
 
-INTERVAL=400
+INTERVAL=1500
+
+csvfolder=lib.pardir(argv[1])+'/csv_dir'
+lib.createfolder(csvfolder)
 
 kshfiles=lib.gen_kshfiles(argv[1])
 for ksh in kshfiles:
-    csvname=open(ksh.replace('.ksh','.csv'),'w')
-    wr=csv.writer(csvname)
-    wr.writerow(["song name", "difficulty name", "level", "section No.",
-    "sum of note density", "sub of note density", "knob density", "hand speed"])
+    #csvname=open(ksh.replace('.ksh','.csv'),'w', newline='') #csv goes to each folder
 
     #1.Generate Main Data
     header, cc = lib.readksh(ksh)
     #print("Processing", header['title'], header['difficulty'], "...")
+    
+    csvname=open(csvfolder+'/'+''.join(e for e in header['title'] if e not in '<>:"/\|?*')+'__'
+    +lib.acronym(header['difficulty'])+'.csv','w', newline='')
+    wr=csv.writer(csvname)
+    #wr.writerow(["NAME", "DIFF", "LEVEL"])
+    #wr.writerow([header['title'], header['difficulty'], header['level']])
+    wr.writerow([header['level']])
+    wr.writerow(["Section No.","Sum of note density", 
+    "Sub of note density", "Knob density", "Hand speed"])
 
     #Suppose that all ksh files ends with '--\n\n' (2 lines with sign of the tune empty)
     tuneindex=[i for i, line in enumerate(cc) if line=='--'] #ith: first line number at ith tune
@@ -282,25 +294,23 @@ for ksh in kshfiles:
 
     #interim(3)
     #4.Mark Special Pattern
-    #currently available: spare (spare hand from holds for soon knob)
+    #currently available: spare (spare hand from holds for soon knob) (or 'hold-in-one')
     #soon update: sewing, duplex
 
-    #맨 처음만 잘잡아주면 나머지는 holdon됨
-    #끝나기 전까지 노브 등장 있으면 1
-    #이 신호가 있으면 노브와 동시에 시작하는 것처럼 작동 
-    #예: 홀드 시작에 직각 노브 있는 듯이
-    #홀드 하는 동안 등장하는 노브들 중 마지막 것이 동시에 시작하는 것처럼.
+    def check_code(mode, hand):
+        if mode=='chip':
+            if hand in [0,1,2,3]:
+                return '1'
+            if hand in [5,6]:
+                return '2'
+        if mode=='hold':
+            if hand in [0,1,2,3]:
+                return '2'
+            if hand in [5,6]:
+                return '1'
 
-    #시작에 다른 노브가 없을 때
-    #hold on 이 켜져있는 동안 노브가 등장할 경우
-    #해당 hold begin index에 knonon, knobside 입력
-    #최종으로 마지막 것을 갖게 holdon 켜져있는 동안에는 knobside 계속 갱신 
-    #hold begin은 여기서 계산하는 걸로 들고오기
-    #hold on은 각 스테이지에서 중복 계산
     BTFX=[0,1,2,3,5,6]
     KNOB=[8,9]
-
-    holdon=[0]*6 #check if the hold is already on(active)
 
     def check_signal(hold_check=True, knob_check=True):
         if hold_check:
@@ -316,6 +326,7 @@ for ksh in kshfiles:
                         knobon[x-8]=0
                         knobside[x-8]='N'
 
+    holdon=[0]*6 #check if the hold is already on(active)
     hold_begin=[] #for one of progress in No.5 stage: determine actual BPM
     for tune in range(tune_total):
         hold_begin.append([])
@@ -330,36 +341,6 @@ for ksh in kshfiles:
                             holdon[BTFX.index(hand)]=1
             hold_begin[tune].append(hold_begin_line)
             
-    ##################
-    """
-    def knob_active(tune, i):
-        result=[]
-        for hand in KNOB:
-            if cc[tuneindex[tune]+i][hand] in '"-': result.append(False)
-            elif cc[tuneindex[tune]+i][hand] in ':#': result.append(True)
-            elif listline[hand] in knobcode: 
-                line_offset=1
-                tune_offset=0
-                idx=tuneindex[tune]+i
-                while True: #next knob 
-                    if idx+line_offset >= tuneindex[(tune+1)+tune_offset]:
-                        tune_offset+=1
-                    else: pass
-                    if idx+line_offset-tuneindex[tune+tune_offset] in infoline[tune+tune_offset]:
-                        line_offset+=1
-                    else: break
-
-                #suppose only next knob sign matters
-                if cc[idx+line_offset][hand] in '-"':
-                    #this condition can't cover this case:
-                    #'AA' (that is, very short stay knob)
-                    #But could fix with small effort and it barely appears.
-                    result.append(False)
-                else: result.append(True)
-
-            else: print("Error! Blank letter in knob line")
-        return result
-    """
     def knob_active(idx):
         result=[]
         for hand in KNOB:
@@ -376,6 +357,14 @@ for ksh in kshfiles:
                 else: result.append(True)
             else: print("Error! Blank letter in knob line")
         return result
+    
+    #spare
+    #한 홀드 내에 손이동 없게 손배치 가능하다고 가정 (적어도 현 아케이드 범위에선 가능)
+    #양쪽 모두 홀드가 등장하면서 노브로 시작하지 않을 때
+    #양쪽 홀드가 유지되는 동안 노브 등장 여부 검사
+    #등장하면 hold_in_one에 knobside(==knob hand; 아래의 경우를 제외 그대로 반영) 추가 혹은 갱신
+    #   -> 최종적으로 마지막 등장 노브가 데이터로 들어감
+    #그러나 이대로 최종 결정된 것이 아닌, DetermineLR stage에서 L/R 한쪽이 많을 경우 많은 쪽으로 통일
 
     hold_in_one={}
     for tune in range(tune_total):
@@ -390,18 +379,14 @@ for ksh in kshfiles:
                 ) and not any(knob_active(tuneindex[tune]+i)):
                     offset=1
                     while True:
-                        if '|' not in cc[tuneindex[tune]+i+offset]:
-                            offset+=1
-                            continue
-                        
-                        for knob_hand in range(2):
-                            if knob_active(tuneindex[tune]+i+offset)[knob_hand]:
-                                hold_in_one[(tune,i)]=['L','R'][knob_hand]
+                        if '|' in cc[tuneindex[tune]+i+offset]:
+                            for knob_hand in range(2):
+                                if knob_active(tuneindex[tune]+i+offset)[knob_hand]:
+                                    hold_in_one[(tune,i)]=['R','L'][knob_hand] #holds needs opposite hand
+                                    break
+                            if not hold_in_both_side(tuneindex[tune]+i+offset):
                                 break
-
-                        #loop until hold_in_both_side
-                        if not hold_in_both_side(tuneindex[tune]+i+offset):
-                            break
+                        offset+=1
     
 
     #interim(4)
@@ -456,34 +441,27 @@ for ksh in kshfiles:
         if hand in [2,3,6,9]:
             return 'R' if capital else 'r'
 
-    def check_code(mode, hand):
-        if mode=='chip':
-            if hand in [0,1,2,3]:
-                return '1'
-            if hand in [5,6]:
-                return '2'
-        if mode=='hold':
-            if hand in [0,1,2,3]:
-                return '2'
-            if hand in [5,6]:
-                return '1'
+
 
     holdon=[0]*6 #check if the hold is already on(active)
     holdside=['N']*6 #L/R: Left/Right   B:Both; also granted when other hand is free    N:Nullity; something went wrong
     knobon=[0]*2 #check if the knob is already on(active)
     knobside=['N']*2
-    
+    #spare_dict={} 
     prev_next=['-','-'] #Left / Right
     Nullity_BTFX_while_all_KNOB_on=0
+    #spare=0
+    #knob_wait='N'
     for tune in range(tune_total):
         for i in range(tunesize[tune]):
             if i not in infoline[tune]:
+                #spare, knob_wait=1, hold_in_one.get((tune,i)) if hold_in_one.get((tune,i)) else 0, 'N'
+                #if hold_in_one.get((tune,i)): spare_dict={} #reset #it seems no use 
                 listline=list(cc[tuneindex[tune]+i][:10]) #1111|00|--
                 check_signal()
 
                 #scan the line
-                hand=8
-                while hand!=7:
+                for hand in KNOB+BTFX: #knob first
                     if hand in KNOB:
                         # 0##a: 'LR' (1st prior)
                         # 0::a: 'lr' (2nd prior)
@@ -533,30 +511,37 @@ for ksh in kshfiles:
                         if listline[hand]!='0':                                
                             if listline[hand]==check_code('chip', hand):
                                 if any(knobon):
-                                    for j in range(len(knobon)):
+                                    for j in range(len(knobon)): #range(2)
                                         if knobon[j]: #if knob already exist
                                             listline[hand]=otherside(hand, knobside[j], capital)
                                             break
                                 else:
+                                    #if hold_in_one.get((tune,i)):
+                                    #    spare_dict[hand]=capital
+                                    #    continue
                                     listline[hand]=side(hand, capital)
                                 if ' ' not in listline[8:10]: #Nullity
                                     listline[hand]='N'
                                     Nullity_BTFX_while_all_KNOB_on+=1
                             elif listline[hand]==check_code('hold', hand):
                                 capital=False
+
                                 if any(knobon):
                                     for j in range(len(knobon)):
                                         if knobon[j]: #if knob already exist
                                             listline[hand]=otherside(hand, knobside[j], capital)
                                             break
                                 else:
-                                    for x in KNOB:
+                                    for x in KNOB: #when knob starts at the same time
                                         if listline[x]!=' ':
                                             listline[hand]=otherside(x, side(x, capital), capital)
                                     else:
                                         if holdon[BTFX.index(hand)]:
                                             listline[hand]=holdside[BTFX.index(hand)]
                                         else:
+                                            #if hold_in_one.get((tune,i)):
+                                            #    spare_dict[hand]=capital
+                                            #    continue
                                             listline[hand]=side(hand, capital)
                                 if ' ' not in listline[8:10]: #Nullity
                                     listline[hand]='n'
@@ -566,7 +551,23 @@ for ksh in kshfiles:
                                 holdside[BTFX.index(hand)]=listline[hand]
                         else:
                             listline[hand]=' '
-                    hand=(hand+1)%10
+                if hold_in_one.get((tune,i)):                    
+                    #check each count of Ll,Rr
+                    LRcount=[0,0]
+                    for x in range(2):
+                        LRcount[x]+=listline[:7].count(['L','R'][x])
+                        LRcount[x]+=listline[:7].count(['l','r'][x])
+                    unite=hold_in_one.get((tune,i))
+                    if LRcount[0]!=LRcount[1]: #there's dominant hand; choose the dominant direction
+                        unite='L' if LRcount[0]-LRcount[1] > 0 else 'R'
+                    for hand in BTFX:
+                        if listline[hand] in 'LR':
+                            listline[hand]=unite
+                        elif listline[hand] in 'lr':
+                            listline[hand]=unite.lower()
+                        if holdon[BTFX.index(hand)]:
+                            holdside[BTFX.index(hand)]=listline[hand]
+
                 cc[tuneindex[tune]+i]=''.join(listline+list(cc[tuneindex[tune]+i][10:]))
             
 
@@ -575,7 +576,7 @@ for ksh in kshfiles:
         print("Nullity detected! Nullity_BTFX_while_all_KNOB_on: ", Nullity_BTFX_while_all_KNOB_on)
         continue
 
-    #interim(5)
+    interim(5)
     #6.Calculate Decayed Tick of Hold Notes
     #hold tick function: y=a*x^b (x: time), (a>0, 0<b<=1)
     #no matter whether BPM change while hold is active: let it be
