@@ -5,7 +5,11 @@ import csv
 
 MARGIN=0.30
 FOR_MATLAB=1 #better format for running MATLAB, but inferior to see directly
-NO_NOV=0
+
+#a chart is excluded when its level is equal or less than the value
+#even the levels are excluded, they remain in the result table for placeholder
+#no chart is excluded when the value is 0.
+EX_MAX_LVL=6 
 
 kshfiles=lib.gen_kshfiles(argv[1])
 
@@ -16,7 +20,7 @@ if FOR_MATLAB:
 level_all=[]
 for ksh in kshfiles:
     header, _ = lib.readksh(ksh)
-    if NO_NOV and int(header['level'])<=6: continue
+    if EX_MAX_LVL and int(header['level'])<=EX_MAX_LVL: continue
     level_all.append(int(header['level']))
 
 
