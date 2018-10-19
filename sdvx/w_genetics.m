@@ -22,13 +22,13 @@ for i = 1:length(filelist)
         continue
     end
     %throw the charts out which level is less than 6 
-    %{
+    
     if cell2mat(textscan(kshID,'%d')) <= 6
        skipped=skipped+1;
        fclose(kshID);
        continue
     end
-    %}
+    
     fseek(kshID,0,'bof');
     kshlist(i-failed-skipped).name=filelist(i).name;
     kshlist(i-failed-skipped).level=textscan(kshID,'%d');
@@ -61,7 +61,7 @@ w_best=ga(@w_ga,4,[],[],[],[],lb,ub,[],options);
 disp(1-w_ga(w_best)) %show how much correct the selected best weight is
 
 function w_missrate = w_ga ( w ) 
-    global kshlist decay_table lvl_class skipped
+    global kshlist decay_table lvl_class %skipped
     diff_score=zeros(length(kshlist),1);
     for i=1:length(kshlist)
         section_score=w*kshlist(i).csv';
@@ -71,8 +71,9 @@ function w_missrate = w_ga ( w )
     wrong_count=0;
     for i = 1:length(kshlist)
         %prctile(diff_score,100-lvl_class(21-cell2mat(kshlist(i).level),1))
-        if diff_score(i) < prctile([zeros(skipped,1);diff_score],lvl_class(cell2mat(kshlist(i).level),1)) ...
-        || diff_score(i) > prctile([zeros(skipped,1);diff_score],lvl_class(cell2mat(kshlist(i).level),2))
+        %prctile([zeros(skipped,1);diff_score],lvl_class(cell2mat(kshlist(i).level),1))
+        if diff_score(i) < prctile(diff_score,lvl_class(cell2mat(kshlist(i).level),1)) ...
+        || diff_score(i) > prctile(diff_score,lvl_class(cell2mat(kshlist(i).level),2))
             wrong_count=wrong_count+1;
         end
     end
