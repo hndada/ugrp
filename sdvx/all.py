@@ -12,6 +12,9 @@
 
 #Model change (ex. change the order from 1 to n, between 1~2 <-Would be work btw?)
 
+#Matlab 결과 개선- 어디서 오류 많이 났나 추적
+#얘의 기존/현재 percentage가 얼마인지 show
+
 #========================================================================================
 #Generate difficulty factor in each interval of each chart with csv format 
 """
