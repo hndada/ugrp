@@ -31,6 +31,16 @@ def pardir(filepath):
     import os
     return os.path.abspath(os.path.join(filepath, os.pardir)) 
 
+def createfolder(directory):
+    import os
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+def acronym(diff):
+    return ('NOV','ADV','EXH','INF')[
+        ('light','challenge','extended','infinite').index(diff)
+    ]
+
 def copytree(src, dst, symlinks=False, ignore=None):
     import os
     import shutil
