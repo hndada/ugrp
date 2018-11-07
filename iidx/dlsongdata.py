@@ -4,12 +4,15 @@ import js2py
 
 http = urllib3.PoolManager()
 # raw = http.request('GET', "http://textage.cc/score/25/aa_rebld.html")
-raw = http.request('GET', "http://textage.cc/score/20/_ongaku.html")
+# raw = http.request('GET', "http://textage.cc/score/20/_ongaku.html")
+# raw = http.request('GET', "http://textage.cc/score/7/spooky.html")
+raw = http.request('GET', "http://textage.cc/score/17/_valse17.html")
+# raw = http.request('GET', "http://textage.cc/score/25/anagma.html")
 raw = raw.data.decode("shift_jis").split('\n')
 scr = """
-function ar(){let sp = new Array();let tc= new Array();
+function ar(){let sp = new Array();let tc= new Array();let ln= new Array();
+let c1 = new Array();LNDEF=384;
 gap=0;
-ln=0;
 k=1;
 l=0;
 a=1;
@@ -49,7 +52,7 @@ for line in raw:
         scr+=line+"\n"
 
 # print(scr)
-scr_end = """return [sp,tc,bpm];}ar();"""
+scr_end = """return [sp,tc,ln,c1,bpm,LNDEF,measure];}ar();"""
 res = js2py.eval_js(scr+scr_end)
 print(res)
 
