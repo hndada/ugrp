@@ -33,7 +33,7 @@ for i in range(len(bar)):
 
 ### 노브 값 왼쪽부터 오른쪽으로
 
-vol="0257ACFHKMPSUXZbehjmo" #.find()이용
+vol="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno" #.find()이용
 
 ###노브 이동 구분하기###
 ### ">" 는 오른쪽으로 "<"는 왼쪽으로 "*"는 왼쪽직각 "#"는 오른쪽직각 ":"는 주차 "-"는 없음###
