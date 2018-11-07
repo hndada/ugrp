@@ -141,9 +141,14 @@ def convert_node_ex(node):
                     res[192*get_table(node[pos+2])//8+24*get_table(node[pos+3])//64, i+2] = 1
             pos += 4
 
-        # 9 : ?
-        # [9][1][?][AB] => make format as 1XX note, but not shift back
-
+        # 9 : BigJang + note 1
+        # [9][A][ABC] add note 1
+        elif (node[pos]=="9"):
+            res[192*get_table(node[pos+2])//8+24*get_table(node[pos+3])//64, 1] = 1
+            for i in range(6):
+                if((get_table(node[pos+1])>>i)&1==1):
+                    res[192*get_table(node[pos+2])//8+24*get_table(node[pos+3])//64, i+2] = 1
+            pos += 4
         # _ : add scratch for first
         # _ - add scratch at AA
         # _[AA][BB] - add scratch at AA, BB, CC...
@@ -163,6 +168,10 @@ def convert_node_ex(node):
         # [-][S][A] - div by 6
         # [-][T][AB] - div by 12 A:6 B:6
         # [-][U][ABCD] - div by 24 A:6 B:6
+        elif (node[pos]=="-"):
+            scratch = node[pos+1:]
+            
+
         # else = ERROR
         else:
             pos += 1
@@ -223,7 +232,6 @@ def convert_node(node):
 notedata = ["","","#Od4Eu","#XoEAQAQ4r","#QIG2EI","#Q4r","#OiwBd","#X4EAQAg4I","#Q4G2EI","#OoB4g","88","44","22","#OXrjR6AA","#Of/bb7AA","#OW2kk6AA","#ONtJJ5AA","#OXrsa4AA","#OI4Z4","#XIA4AoI4G4AA","#XII4AALoAQgH","#X0ErDiCZB","#O4oPo","#XQ4oAY4oC7AA","#OnoHYQ4F","#XQHA4NFYQB/","#XPGApgDAh","#XfGBpUDBp","#XfGBogDBY","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBg","#Or+jq","#OIYhY_","#OIYxY5AA","#OJYBf7AA","#OJYJYQ1l","#XwBAQDAgy_","#O56jl","#OJYJYQwF","#XIBAIOGgQ7AA","#XIBAQCArrXoFAwGAAA","#XIBAIBGYY7AA","#XQCAQHQgg","#XoFAoFCoo","#Oxd60","#XIB4YD4II_","#XrD4NFFQQ","#odoUgB+","#Opd9Z","#OgAD8_","#X4FAIAQA0","#OwNHG","#qsa4Fo","#OwLqn","#qbG","#O9Z0V","#OKccu","#OIYBY7AA_","#XOAYAvIYA4AA","#OJYpY6AA","#XIIYDIIYABn","#XIAoBY4oA7AA","#XU4oBY4oT7AA","#OnoHIQ4F","#X0ErDiCZB","#XvGApgDAh","#XfGBpmDBp","#XfGBogDBo","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBQ","#XgI4wogei","#OL8Ur5AA","#OM0fi5DA","#OMaviQwG","#OL5VjB2","#XQI4YQg1j6AA","#XQgwYI4sa","#XIoYQg41j","#XIBAINFgQX4HA44AAA","01"]
 
 
-notedata = ["#SBBB"]
 def print_node_data(arr, d):
     for i in reversed(range(len(arr))):
         if i % (192/d) != 0:
@@ -243,4 +251,4 @@ for i in range(len(notedata)):
     for i in tmp:
         arr[k] = i
         k += 1
-print_node_data(arr, 6)
+print_node_data(arr, 24)
