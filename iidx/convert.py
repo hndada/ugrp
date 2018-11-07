@@ -52,130 +52,138 @@ def add_note_complex(loc_init, data, res):
         it+=192//div
     return res
 
+def scratch_convert(data,div):
+    ret = [0]*len(data)*6
+    ptr = 0
+    for i in data:
+        for j in reversed(range(6)):
+            if (get_table(i)>>j)&1 == 1:
+                ret[ptr] = 1
+            ptr += 1
+    return ret[:div]
+
+def add_scratch_basic(loc_init, div, res):
+    pos = loc_init
+    while (pos < 192):
+        res[pos, 0] = 1
+        pos += 192//div
+    return res
+
+def add_scratch_complex(data, res):
+    for i in range(len(data)):
+        if data[i] == 1:
+            res[192*i//len(data), 0] = 1
+    return res
+
 def convert_node_ex(node):
     pos = 0
     res = np.zeros((192,8))
-    mode = 0
-    loc_init = 0
-    loc_var = 0
-    loc = 0
+    is_scr = False
     while(pos<len(node)):
+        mode = 0
+        init = 0
+        data = [0]*8
+        ptr = 1
         # add sequencial note for one lane
         # [A][B] - [A]:note div(CcRrPp), [B]:note lane
         if (node[pos]=="C"): # 1/2
-            res = add_note_basic( 0,96,node[pos+1],res)
-            pos += 2
+            mode = 1; init =  0; div =  2; ptr = 1 if is_scr else 2;
         elif (node[pos]=="c"): # 1/2H
-            res = add_note_basic(48,96,node[pos+1],res)
-            pos += 2
+            mode = 1; init = 48; div =  2; ptr = 1 if is_scr else 2;
         elif (node[pos]=="R"): # 1/4
-            res = add_note_basic( 0,48,node[pos+1],res)
-            pos += 2
+            mode = 1; init =  0; div =  4; ptr = 1 if is_scr else 2;
         elif (node[pos]=="r"): # 1/4H
-            res = add_note_basic(24,48,node[pos+1],res)
-            pos += 2
+            mode = 1; init = 24; div =  4; ptr = 1 if is_scr else 2;
         elif (node[pos]=="P"): # 1/8
-            res = add_note_basic( 0,24,node[pos+1],res)
-            pos += 2
+            mode = 1; init =  0; div =  8; ptr = 1 if is_scr else 2;
         elif (node[pos]=="p"): # 1/8H
-            res = add_note_basic(12,24,node[pos+1],res)
-            pos += 2
+            mode = 1; init = 12; div =  8; ptr = 1 if is_scr else 2;
         
         # complex style, each letter divided with two part
         # [A][BC~] - [A]:note div(BbQqOoXxZ), [BC~]:note data
         elif (node[pos]=="B"): # 1 Comp
-            res = add_note_complex( 0,node[pos+1],res)
-            pos += 2
+            mode = 2; init =  0; div =  1; ptr = 2;
         elif (node[pos]=="b"): # 1H Comp
-            res = add_note_complex(48,node[pos+1],res)
-            pos += 2
+            mode = 2; init = 48; div =  1; ptr = 2;
         elif (node[pos]=="Q"): # 1/2 Comp
-            res = add_note_complex( 0,node[pos+1:pos+3],res)
-            pos += 3
+            mode = 2; init =  0; div =  2; ptr = 2 if is_scr else 3;
         elif (node[pos]=="q"): # 1/2H Comp
-            res = add_note_complex(24,node[pos+1:pos+3],res)
-            pos += 3
+            mode = 2; init = 24; div =  2; ptr = 2 if is_scr else 3;
         elif (node[pos]=="O"): # 1/4 Comp
-            res = add_note_complex( 0,node[pos+1:pos+5],res)
-            pos += 5
+            mode = 2; init =  0; div =  4; ptr = 3 if is_scr else 5;
         elif (node[pos]=="o"): # 1/4H Comp
-            res = add_note_complex(12,node[pos+1:pos+5],res)
-            pos += 5
+            mode = 2; init = 12; div =  4; ptr = 3 if is_scr else 5;
         elif (node[pos]=="X"): # 1/8 Comp
-            res = add_note_complex( 0,node[pos+1:pos+9],res)
-            pos += 9
+            mode = 2; init =  0; div =  8; ptr = 4 if is_scr else 9;
         elif (node[pos]=="x"): # 1/8H Comp
-            res = add_note_complex( 6,node[pos+1:pos+9],res)
-            pos += 9
+            mode = 2; init =  6; div =  8; ptr = 4 if is_scr else 9;
         elif (node[pos]=="Z"): # 1/16 Comp
-            res = add_note_complex( 0,node[pos+1:pos+17],res)
-            pos += 17
+            mode = 2; init =  0; div = 16; ptr = 5 if is_scr else 17;
         
         elif (node[pos]=="S"): # 1/3 Comp...?
-            res = add_note_complex( 0,node[pos+1:pos+4],res)
-            pos += 4
+            mode = 2; init =  0; div =  3; ptr = 3 if is_scr else 4;
         elif (node[pos]=="s"): # 1/3H Comp
-            res = add_note_complex(16,node[pos+1:pos+4],res)
-            pos += 4
+            mode = 2; init = 16; div =  3; ptr = 3 if is_scr else 4;
         elif (node[pos]=="T"): # 1/6 Comp
-            res = add_note_complex( 0,node[pos+1:pos+7],res)
-            pos += 7
+            mode = 2; init =  0; div =  6; ptr = 4 if is_scr else 7;
         elif (node[pos]=="t"): # 1/6H Comp
-            res = add_note_complex( 8,node[pos+1:pos+7],res)
-            pos += 7
+            mode = 2; init =  8; div =  6; ptr = 4 if is_scr else 7;
         elif (node[pos]=="U"): # 1/12 Comp
-            res = add_note_complex( 0,node[pos+1:pos+13],res)
-            pos += 13
+            mode = 2; init =  0; div = 12; ptr = 5 if is_scr else 13;
 
         # 1~7 : add one note for lane i
         # [A][BC] - [A]:note type(1~7) [BC]:timing
         elif (node[pos]=="1" or node[pos]=="2" or node[pos]=="3" or node[pos]=="4" or node[pos]=="5" or node[pos]=="6" or node[pos]=="7"):
-            res[192*get_table(node[pos+1])//8+24*get_table(node[pos+2])//64, ord(node[pos])-48] = 1
-            pos += 3
-        
+            mode = 3; ptr =  3; init = 192*get_table(node[pos+1])//8+24*get_table(node[pos+2])//64
+            div = 1; data[ord(node[pos])-48] = 1
         # 8 : add BigJang
         # 8[A][BC] - [A]:note type(2~7 layne, binary), [BC]:timing
         elif (node[pos]=="8"):
             for i in range(6):
                 if((get_table(node[pos+1])>>i)&1==1):
-                    res[192*get_table(node[pos+2])//8+24*get_table(node[pos+3])//64, i+2] = 1
-            pos += 4
-
+                    data[i+2] = 1
+            mode = 3; ptr =  4; init = 192*get_table(node[pos+1])//8+24*get_table(node[pos+2])//64
         # 9 : BigJang + note 1
         # [9][A][ABC] add note 1
         elif (node[pos]=="9"):
-            res[192*get_table(node[pos+2])//8+24*get_table(node[pos+3])//64, 1] = 1
+            mode = 3; ptr =  4; init = 192*get_table(node[pos+1])//8+24*get_table(node[pos+2])//64
             for i in range(6):
                 if((get_table(node[pos+1])>>i)&1==1):
-                    res[192*get_table(node[pos+2])//8+24*get_table(node[pos+3])//64, i+2] = 1
+                    data[i+2] = 1
+            data[1] = 1
             pos += 4
         # _ : add scratch for first
         # _ - add scratch at AA
         # _[AA][BB] - add scratch at AA, BB, CC...
         elif (node[pos]=="_"):
-            res[0,0] = 1
-            pos += 1
-        # - : add scratchs A6A5A4A3A2A1B6B5B4B3B2B1C6C5C4C3
-        # [-][C] - put note on every 2 beat
-        # [-][R] - put note on every beat (4)
-        # [-][P] - put note on every 1/2 beat (8)
-        ## T, U, X = doesn't need to have every digit - leftover = A
-        # [-][B] - div by 2
-        # [-][Q] - div by 4
-        # [-][O] - div by 8
-        # [-][X][ABC] - div by 16 a6a5a4a3a2a1b6b5b4b3b2b1c6c54c3c2
-        # [-][Z][ABCDEF] - div by 32
-        # [-][S][A] - div by 6
-        # [-][T][AB] - div by 12 A:6 B:6
-        # [-][U][ABCD] - div by 24 A:6 B:6
+            mode = 4;
+        # change to scratch mode
         elif (node[pos]=="-"):
-            scratch = node[pos+1:]
-            
-
+            is_scr = True; ptr = 1;
         # else = ERROR
         else:
-            pos += 1
+            ptr += 1
             return "ERROR"
+        if is_scr:
+            if   mode == 1:
+                res = add_scratch_basic(init,div,res)
+            elif mode == 2: # ??AA not included
+                print(scratch_convert(node[pos+1:pos+ptr],div*2))
+                res = add_scratch_complex(scratch_convert(node[pos+1:pos+ptr],div*2),res)
+        else:
+            if   mode == 1:
+                res = add_note_basic(init,192/div,node[pos+1],res)
+            elif mode == 2:
+                res = add_note_complex(init,node[pos+1:pos+ptr],res)
+            elif mode == 3:
+                for i in range(8):
+                    if data[i]==1:
+                        res[init]==1
+            elif mode == 4:
+                # need more work - single notes and etc
+                res[0,0] = 1
+        pos += ptr
+                
     return res
 
 def get_ord_nm(val):
@@ -231,7 +239,6 @@ def convert_node(node):
 
 notedata = ["","","#Od4Eu","#XoEAQAQ4r","#QIG2EI","#Q4r","#OiwBd","#X4EAQAg4I","#Q4G2EI","#OoB4g","88","44","22","#OXrjR6AA","#Of/bb7AA","#OW2kk6AA","#ONtJJ5AA","#OXrsa4AA","#OI4Z4","#XIA4AoI4G4AA","#XII4AALoAQgH","#X0ErDiCZB","#O4oPo","#XQ4oAY4oC7AA","#OnoHYQ4F","#XQHA4NFYQB/","#XPGApgDAh","#XfGBpUDBp","#XfGBogDBY","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBg","#Or+jq","#OIYhY_","#OIYxY5AA","#OJYBf7AA","#OJYJYQ1l","#XwBAQDAgy_","#O56jl","#OJYJYQwF","#XIBAIOGgQ7AA","#XIBAQCArrXoFAwGAAA","#XIBAIBGYY7AA","#XQCAQHQgg","#XoFAoFCoo","#Oxd60","#XIB4YD4II_","#XrD4NFFQQ","#odoUgB+","#Opd9Z","#OgAD8_","#X4FAIAQA0","#OwNHG","#qsa4Fo","#OwLqn","#qbG","#O9Z0V","#OKccu","#OIYBY7AA_","#XOAYAvIYA4AA","#OJYpY6AA","#XIIYDIIYABn","#XIAoBY4oA7AA","#XU4oBY4oT7AA","#OnoHIQ4F","#X0ErDiCZB","#XvGApgDAh","#XfGBpmDBp","#XfGBogDBo","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBQ","#XgI4wogei","#OL8Ur5AA","#OM0fi5DA","#OMaviQwG","#OL5VjB2","#XQI4YQg1j6AA","#XQgwYI4sa","#XIoYQg41j","#XIBAINFgQX4HA44AAA","01"]
 
-
 def print_node_data(arr, d):
     for i in reversed(range(len(arr))):
         if i % (192/d) != 0:
@@ -251,4 +258,4 @@ for i in range(len(notedata)):
     for i in tmp:
         arr[k] = i
         k += 1
-print_node_data(arr, 24)
+print_node_data(arr, 12)
