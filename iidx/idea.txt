@@ -1,10 +1,56 @@
 sp=[,,"#Od4Eu","#XoEAQAQ4r","#QIG2EI","#Q4r","#OiwBd","#X4EAQAg4I","#Q4G2EI","#OoB4g","88","44","22","#OXrjR6AA","#Of/bb7AA","#OW2kk6AA","#ONtJJ5AA","#OXrsa4AA","#OI4Z4","#XIA4AoI4G4AA","#XII4AALoAQgH","#X0ErDiCZB","#O4oPo","#XQ4oAY4oC7AA","#OnoHYQ4F","#XQHA4NFYQB/","#XPGApgDAh","#XfGBpUDBp","#XfGBogDBY","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBg","#Or+jq","#OIYhY_","#OIYxY5AA","#OJYBf7AA","#OJYJYQ1l","#XwBAQDAgy_","#O56jl","#OJYJYQwF","#XIBAIOGgQ7AA","#XIBAQCArrXoFAwGAAA","#XIBAIBGYY7AA","#XQCAQHQgg","#XoFAoFCoo","#Oxd60","#XIB4YD4II_","#XrD4NFFQQ","#odoUgB+","#Opd9Z","#OgAD8_","#X4FAIAQA0","#OwNHG","#qsa4Fo","#OwLqn","#qbG","#O9Z0V","#OKccu","#OIYBY7AA_","#XOAYAvIYA4AA","#OJYpY6AA","#XIIYDIIYABn","#XIAoBY4oA7AA","#XU4oBY4oT7AA","#OnoHIQ4F","#X0ErDiCZB","#XvGApgDAh","#XfGBpmDBp","#XfGBogDBo","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBQ","#XgI4wogei","#OL8Ur5AA","#OM0fi5DA","#OMaviQwG","#OL5VjB2","#XQI4YQg1j6AA","#XQgwYI4sa","#XIoYQg41j","#XIBAINFgQX4HA44AAA","01"];}
 
 
-O  d  4  E  u
-4F 64 34 45 75
-01001111 01100100 00110100 01000101 01110101
-???
+Od4Eu
+
+d4Eu
+30 57 5 47
+
+
+1040000010400000 = #0mAmA
+0440001040400010 = #0WUWU
+
+
+m = 19, 3
+A = 12, 5
+
+m = 6D
+01101101
+A = 41
+10000001
+
+b64
+ABCDEFGHIJ
+KLMNOPQRST
+UVWXYZabcd
+efghijklmn
+opqrstuvwx
+yz01234567
+89+/
+
+0:ABCDEFGH
+1:IJKLMNOP
+2:QRSTUVWX
+3:YZabcdef
+4:ghijklmn
+5:opqrstuv
+6:wxyz0123
+7:456789+/
+
+m = 4,6
+A = 0,0
+
+
+A = 000000
+m = 100110
+
+
+//   0       1       2       3       4       5       6       7
+b64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+
+
+
 >> don't need to decode data - just put into machine
 >> how? put random 50 bars to input layer w/ some encoding
 

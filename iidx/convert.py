@@ -110,26 +110,59 @@ def convert_node_ex(node):
         elif (node[pos]=="Z"): # 1/16 Comp
             res = add_note_complex( 0,node[pos+1:pos+17],res)
             pos += 17
+        
+        elif (node[pos]=="S"): # 1/3 Comp...?
+            res = add_note_complex( 0,node[pos+1:pos+4],res)
+            pos += 4
+        elif (node[pos]=="s"): # 1/3H Comp
+            res = add_note_complex(16,node[pos+1:pos+4],res)
+            pos += 4
+        elif (node[pos]=="T"): # 1/6 Comp
+            res = add_note_complex( 0,node[pos+1:pos+7],res)
+            pos += 7
+        elif (node[pos]=="t"): # 1/6H Comp
+            res = add_note_complex( 8,node[pos+1:pos+7],res)
+            pos += 7
+        elif (node[pos]=="U"): # 1/12 Comp
+            res = add_note_complex( 0,node[pos+1:pos+13],res)
+            pos += 13
 
         # 1~7 : add one note for lane i
         # [A][BC] - [A]:note type(1~7) [BC]:timing
         elif (node[pos]=="1" or node[pos]=="2" or node[pos]=="3" or node[pos]=="4" or node[pos]=="5" or node[pos]=="6" or node[pos]=="7"):
-            res[192*get_table(node[pos+1])//8+24*get_table(node[pos+2])//64, ord(node[pos])-48] = 1 # need to fix
+            res[192*get_table(node[pos+1])//8+24*get_table(node[pos+2])//64, ord(node[pos])-48] = 1
             pos += 3
         
         # 8 : add BigJang
         # 8[A][BC] - [A]:note type(2~7 layne, binary), [BC]:timing
+        elif (node[pos]=="8"):
+            for i in range(6):
+                if((get_table(node[pos+1])>>i)&1==1):
+                    res[192*get_table(node[pos+2])//8+24*get_table(node[pos+3])//64, i+2] = 1
+            pos += 4
 
         # 9 : ?
+        # [9][1][?][AB] => make format as 1XX note, but not shift back
 
         # _ : add scratch for first
-        # _ - add scratch
+        # _ - add scratch at AA
+        # _[AA][BB] - add scratch at AA, BB, CC...
         elif (node[pos]=="_"):
             res[0,0] = 1
             pos += 1
-        # - : add scratchs
-        # -
-
+        # - : add scratchs A6A5A4A3A2A1B6B5B4B3B2B1C6C5C4C3
+        # [-][C] - put note on every 2 beat
+        # [-][R] - put note on every beat (4)
+        # [-][P] - put note on every 1/2 beat (8)
+        ## T, U, X = doesn't need to have every digit - leftover = A
+        # [-][B] - div by 2
+        # [-][Q] - div by 4
+        # [-][O] - div by 8
+        # [-][X][ABC] - div by 16 a6a5a4a3a2a1b6b5b4b3b2b1c6c54c3c2
+        # [-][Z][ABCDEF] - div by 32
+        # [-][S][A] - div by 6
+        # [-][T][AB] - div by 12 A:6 B:6
+        # [-][U][ABCD] - div by 24 A:6 B:6
         # else = ERROR
         else:
             pos += 1
@@ -189,6 +222,17 @@ def convert_node(node):
 
 notedata = ["","","#Od4Eu","#XoEAQAQ4r","#QIG2EI","#Q4r","#OiwBd","#X4EAQAg4I","#Q4G2EI","#OoB4g","88","44","22","#OXrjR6AA","#Of/bb7AA","#OW2kk6AA","#ONtJJ5AA","#OXrsa4AA","#OI4Z4","#XIA4AoI4G4AA","#XII4AALoAQgH","#X0ErDiCZB","#O4oPo","#XQ4oAY4oC7AA","#OnoHYQ4F","#XQHA4NFYQB/","#XPGApgDAh","#XfGBpUDBp","#XfGBogDBY","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBg","#Or+jq","#OIYhY_","#OIYxY5AA","#OJYBf7AA","#OJYJYQ1l","#XwBAQDAgy_","#O56jl","#OJYJYQwF","#XIBAIOGgQ7AA","#XIBAQCArrXoFAwGAAA","#XIBAIBGYY7AA","#XQCAQHQgg","#XoFAoFCoo","#Oxd60","#XIB4YD4II_","#XrD4NFFQQ","#odoUgB+","#Opd9Z","#OgAD8_","#X4FAIAQA0","#OwNHG","#qsa4Fo","#OwLqn","#qbG","#O9Z0V","#OKccu","#OIYBY7AA_","#XOAYAvIYA4AA","#OJYpY6AA","#XIIYDIIYABn","#XIAoBY4oA7AA","#XU4oBY4oT7AA","#OnoHIQ4F","#X0ErDiCZB","#XvGApgDAh","#XfGBpmDBp","#XfGBogDBo","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBQ","#XgI4wogei","#OL8Ur5AA","#OM0fi5DA","#OMaviQwG","#OL5VjB2","#XQI4YQg1j6AA","#XQgwYI4sa","#XIoYQg41j","#XIBAINFgQX4HA44AAA","01"]
 
+
+notedata = ["#SBBB"]
+def print_node_data(arr, d):
+    for i in reversed(range(len(arr))):
+        if i % (192/d) != 0:
+            continue
+        print("%4d:%s"%(i%192,str(arr[i])))
+        if i % 192 == 0:
+            print("     node " + str(i//192))
+
+
 arr = np.zeros((192*len(notedata),8))
 k = 0
 for i in range(len(notedata)):
@@ -199,10 +243,4 @@ for i in range(len(notedata)):
     for i in tmp:
         arr[k] = i
         k += 1
-
-for i in reversed(range(len(arr))):
-    if i % (192/8) != 0:
-        continue
-    print("%4d:%s"%(i%192,str(arr[i])))
-    if i % 192 == 0:
-        print("     node " + str(i//192))
+print_node_data(arr, 6)

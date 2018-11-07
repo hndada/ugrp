@@ -77,6 +77,12 @@ for line in file_diff.readlines():
 file_diff.close()
 
 
+
+# 0WEWE
+# 117127125127125
+    # random.shuffle(query)
+
+
 # sheet data link
 file_list = open("list.txt", "r")
 # http://textage.cc/score/titletbl.js
