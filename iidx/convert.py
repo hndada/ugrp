@@ -265,7 +265,7 @@ def print_node_data(arr, d=DV):
         if i % DV == 0:
             print("     node " + str(i//DV))
 
-def convert_chart(data):
+def convert_chart(data, time_cut = 1000//12):
     pos = 1
     time = 0
     if len(data[4])>3:
@@ -281,19 +281,30 @@ def convert_chart(data):
     else:
         curbpm = basebpm
     res = np.zeros((10000,8))
-    time_cut = 1000//12
     time_div = []
     while pos<=length:
         if len(data[2]) <= pos or data[2][pos]==None:
             div = baseDV
         else:
             div = data[2][pos]
+        # change speed with well... like 28064
+        bpms = []
+        bpmcng = False
         if(data[1][pos]!=None):
-            curbpm = int(data[1][pos][0][:3])
-        time_seg = (div/384.0*4*60000/curbpm)
+            bpmcng = True
+            bpms.append((curbpm,0))
+            for i in data[1][pos]:
+                bpms.append((int(i[:3]),int(i[3:])))
+                curbpm = int(i[:3])
+            bpms.append((curbpm,div*128//384))
+        time_seg = 0
+        if bpmcng == True:
+            for i in range(len(bpms)-1):
+                time_seg += div/384.0*4*60000/bpms[i][0]*(bpms[i+1][1]-bpms[i][1])/(div*128/384)
+        else:
+            time_seg = (div/384.0*4*60000/curbpm)
         for i in range(div):
             time_div.append(time+time_seg/div*i)
-        # print(len(time_div))
         time += time_seg
         # print(pos,div,curbpm,div/384.0,time_seg,time)
         pos += 1
@@ -319,30 +330,13 @@ def convert_chart(data):
                 if nodedata[i,j]==1:
                     res[p,j] = nodedata[i,j]
         pos_time += DV
-        # print(pos_time)
         pos += 1
-    for i in range(res.shape[0]):
-        print(i,res[i])
+    return res
 
-
-"""
-arr = np.zeros((DV*len(notedata),8))
-k = 0
-for i in range(len(notedata)):
-    tmp = convert_node(notedata[i])
-    if(str(tmp)=="ERROR"):
-        print("ERROR @ " +str(i) + ":" + notedata[i])
-        continue
-    for i in tmp:
-        arr[k] = i
-        k += 1
-print_node_data(arr, 8)
-"""
-
-notedata = ["","","#Od4Eu","#XoEAQAQ4r","#QIG2EI","#Q4r","#OiwBd","#X4EAQAg4I","#Q4G2EI","#OoB4g","88","44","22","#OXrjR6AA","#Of/bb7AA","#OW2kk6AA","#ONtJJ5AA","#OXrsa4AA","#OI4Z4","#XIA4AoI4G4AA","#XII4AALoAQgH","#X0ErDiCZB","#O4oPo","#XQ4oAY4oC7AA","#OnoHYQ4F","#XQHA4NFYQB/","#XPGApgDAh","#XfGBpUDBp","#XfGBogDBY","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBg","#Or+jq","#OIYhY_","#OIYxY5AA","#OJYBf7AA","#OJYJYQ1l","#XwBAQDAgy_","#O56jl","#OJYJYQwF","#XIBAIOGgQ7AA","#XIBAQCArrXoFAwGAAA","#XIBAIBGYY7AA","#XQCAQHQgg","#XoFAoFCoo","#Oxd60","#XIB4YD4II_","#XrD4NFFQQ","#odoUgB+","#Opd9Z","#OgAD8_","#X4FAIAQA0","#OwNHG","#qsa4Fo","#OwLqn","#qbG","#O9Z0V","#OKccu","#OIYBY7AA_","#XOAYAvIYA4AA","#OJYpY6AA","#XIIYDIIYABn","#XIAoBY4oA7AA","#XU4oBY4oT7AA","#OnoHIQ4F","#X0ErDiCZB","#XvGApgDAh","#XfGBpmDBp","#XfGBogDBo","#XPGBpUDFB","#XfGApgDAh","#XfGBpmDBp","#XfGBogDBQ","#XgI4wogei","#OL8Ur5AA","#OM0fi5DA","#OMaviQwG","#OL5VjB2","#XQI4YQg1j6AA","#XQgwYI4sa","#XIoYQg41j","#XIBAINFgQX4HA44AAA","01"]
 
 data = [[None, None, None, None, '822040', '821040', '820820', '421080', '280014408208', '50002410a040', '88003004c002', '1400a0085002', '080412204480', '0204100220102040', '802040102008100a', 'x030a0@0248001080@0224@02900040082000900008400400', 'x03032@0248@0290@0224@0292@0248@02820008041000', 'a200104420001800200440002a005000840028005000a000', '00a8', None, None, None, '4810a000', '42048800', '24085000', '02845020', '84085000', '82240840', '44289020', '42289040', '8410a040', '02845020', '82042800', '04904010', '22045020', '84108440', 'c400640018005444', '5400a404c4005400', 'c200a8004800a222', 'a2005202a2006200', '62102804c0106218', 'c410621462105408', 'c2102804c010620c', '8200540ca2106410', 'x020c2@032200020002@0314402040', 'x0208c@02022800020008@030a201040', 'x020a4@032400040004@030c201040', 'a200120202000200', 'x060c4@0b6c@1712@0220020040000280@02', '0200140428085212', '240080001000220010022000420080001000220010022000', 'x06042@0380@0320@0342@032000020040@0312@0320@0340@0316@0220@0244@0280@02', '2c00202020002020', '2000202040008000', '1000101010001010', '1000101080004000', '8200424242008200', '4200222222008800', '8400282828008200', '4200222222002000', '4800880808004800', '2400840404000400', '2200820202000200', '44140404', '28880808', 'a0508844', '2200101010008000', '542a542a', 'x03027@0524@0224@022004@0424@0224@02', '2400242444008400', '4200424242004242', '4200424222001200', '80042010', '2002', '80002010', 'x08022@0f02@0702@0754@0f2c@0e01', 'd0002844', 'x0108800400442@03', '90004814', 'x01088@028090@03', '48008422', '44801240', '24004408', '82004422', '18004824', 'x01812@0204040420@02222222', 'x01848@0244444490@02545454', '8b00944a', 'x01094@02208a002080', 'x01054@0386004a02', '64824850', '82102040', '82041020', '42040884', '22084010', '82040850', 'a0004824', 'x18012@2f24@0f48@0f90@0f22@0f44@0f88@0f50@1728@1401@02', 'x060d2@0520@0510@0220@0240000680@0210@0220060040@0280@0252@0b', 'x180cb@1710@1702@0b20@0b40@0706@0380@0b10@0b20@0306@0740@0b80@0b52@2c01@02', 'aaa8', 'x010c6@03a6000820', '5528a050a850a450', '2a14a2502a145228', '542298441a24c0a8', '3418a054a854a854', 'x180ab@1740@1702@0b10@0b20@0706@0340@0b10@0b20@0306@0740@0b80@0b52@2c01@02', 'x180ca@1720@1702@0b20@0b40@0702@0380@0b08@0b10@0302@0720@0b40@0b92@2c01@02', '2ea8', 'x08057@1e01c6@0f10@0740@07', '8a289050', '88288442', '82204214', '8200200042001404', '4200200082004404', '8200200082004404', 'x18002@0220@1080@0b08@0f02@0220@12080002@0b20@0b02@0240@1480@0710@0c40@0202@0f10@0702@0740@0f', 'x18002@0220@1080@0f20@0b02@0240@12200002@0b40@0b84@1f28@0f80@0f50@1f', 'a20a', 'x018@0304@02080010002000', '8240', '8220', '5a0020041000880040102000980040020800140020084000', 'b20040042000180080102000c40020021000480010084000', 'a600400820004400201040009a0040042000480020044000', '0a0010044000a80040041000480020020800240010082000', '540020084000900040041000a20040041000280080044000', '820040081000a40040102000880040042000420020041000', '4a0020041000280040041000a20040041000480020044000', 'aa0408122450aa4490284482', '24104080', '42142010', '82040840', '24882010', '2680204c00', '5880204a00', '548020', '8a1020', '8a', '8a', '8a', '8a', 'aa48a8', '4a8a4a', 'aaaaaa', 'b2b2b2', '940094949400', '949494', 'd2d2d2', 'e2e2e2', 'a400b4b4b400', 'e4e2c2', 'c200c2c2c200', 'b2b2ca', '96', 'x00c0080@04', 'x018@0502@06'], [None, ['2450'], None, None, None, None, None, None, None, None, None, None, None, None, ['2800'], None, None, None, ['2450'], None, ['2300'], None, None, None, None, None, None, None, ['2400'], None, None, None, None, None, None, ['2500'], ['2600'], None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, ['2800'], None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, ['2700'], None, None, None, ['2800'], None, None, None, None, None, None, None, None, None, None, None, None, None, ['2700'], None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, ['2400'], None, ['2100'], None, ['2600'], None, None, None, None, None, None, None, None, None, None, None, ['2800'], None, None, None, ['2900'], None, ['31064'], None, None, None, None, None, ['3300'], None, ['3400'], None, ['3500'], ['3600'], None, None, None, None, None, ['2400']], [None, None, None, None, None, None, None, None, None, None, None, None, None, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 384, 480, 480], [], '210~360', 288, 157]
 
-convert_chart(data)
+res = convert_chart(data)
 
-
+for i in range(res.shape[0]):
+    print(i,res[i])
