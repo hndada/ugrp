@@ -90,27 +90,27 @@ for line in file_list.readlines():
         print("Receiving from " + url + ", Difficulty Another...")
         received_data = receive_song_data(url,"a")
         if len(received_data[0])>0:
-            print(received_data)
+            # print(received_data)
             converted_data = convert.convert_chart(received_data)
             print("Data confirmed.")
             data.append((converted_data,diff[3]))
-        """
         time.sleep(1)
         print("Receiving from " + url + ", Difficulty Hyper...")
         received_data = receive_song_data(url,"h")
         if len(received_data[0])>0:
+            # print(received_data)
+            converted_data = convert.convert_chart(received_data)
             print("Data confirmed.")
-            data.append((received_data,diff[2]))
+            data.append((converted_data,diff[2]))
         time.sleep(1)
         print("Receiving from " + url + ", Difficulty Normal...")
         received_data = receive_song_data(url,"n")
         if len(received_data[0])>0:
+            # print(received_data)
+            converted_data = convert.convert_chart(received_data)
             print("Data confirmed.")
-            data.append((received_data,diff[1]))
-        time.sleep(1)"""
-    idx += 1
-    if idx > 1:
-        break
+            data.append((converted_data,diff[1]))
+        time.sleep(1)
 print(data)
 print("saving...")
 np.save('rawdata.npy',np.array(data))

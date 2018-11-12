@@ -77,6 +77,9 @@ def add_scratch_complex(data, res):
     return res
 
 def get_loc_precise(f, s):
+    res = DV*get_table(f)//8+DV//8*get_table(s)//64
+    if(res >= DV):
+        return DV-1
     return DV*get_table(f)//8+DV//8*get_table(s)//64
 
 def convert_node_ex(node):
@@ -187,7 +190,15 @@ def convert_node_ex(node):
             elif mode == 3:
                 for i in range(8):
                     if data[i]==1:
-                        res[get_loc_precise(node[pos+1],node[pos+2]),i] = 1
+                        if len(node)==pos:
+                            continue
+                        if(len(node)==pos+1):
+                            res[get_loc_precise("A","A"),i] = 1
+                        elif(len(node)==pos+2):
+                            res[get_loc_precise(node[pos+1],"A"),i] = 1
+                        else:
+                            res[get_loc_precise(node[pos+1],node[pos+2]),i] = 1
+                            
             elif mode == 4:
                 # need more work - single notes and etc
                 res[0,0] = 1
