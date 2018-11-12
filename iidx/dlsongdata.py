@@ -14,6 +14,7 @@ CONSOLE_NORMAL = '\033[0m'
 CONSOLE_BLUE = '\033[94m'
 scr_init = """
 function ar(){s="";LNDEF=384,cob=["s","w","b","w","b","w","b","w"];
+document = ""
 obr=[[0,1,2,3,4,5,6,7],[0,1,2,3,4,5,6,7]];kc=[[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]];
 dpalls=[[0,1,2,3,4,5,6,7],[0,7,6,5,4,3,2,1]];imgdir="../";diftype="";twstr="";
 ln=[],sp=[],dp=[],tc=[],c1=[],c2=[],cn=[],sides=["",2,2],csd=["","left","right"];
@@ -92,19 +93,21 @@ data = []
 failed = []
 warning = []
 
-cnt = 0
 cnt_comp = 0
 cnt_warn = 0
 cnt_errr = 0
-
+log = ""
 def retrieve_data_advanced(url, diff):
     global data, failed, warning
-    global cnt_comp, cnt_warn, cnt_errr
+    global cnt_comp, cnt_warn, cnt_errr, log
     received_data_raw = []
-    # try:
-    received_data_raw = receive_song_data_advanced(url)
-    # except:
-        # print(CONSOLE_RED+"Failed to retrieve data:data download fail"+CONSOLE_NORMAL)
+    try:
+        received_data_raw = receive_song_data_advanced(url)
+    except js2py.internals.simplex.JsException as e:
+        print(CONSOLE_RED+"Failed to retrieve data:data download fail"+CONSOLE_NORMAL)
+        log += url + "\n" + str(e) + "\n"
+        failed.append((url,-1,'js2py'))
+        return
     if received_data_raw == "ERROR":
         return False
     ind = 0
@@ -132,60 +135,72 @@ def retrieve_data_advanced(url, diff):
             else:
                 cnt_comp += 1
         except IndexError as e:
-            print(CONSOLE_RED+"Failed to retrieve data:Indexerror at convert.py"+CONSOLE_NORMAL)
+            print(CONSOLE_RED+"Failed to retrieve data:Index error at convert.py"+CONSOLE_NORMAL)
+            log += url + "\n" + str(e) + "\n"
             failed.append((url,ind,'convert_index'))
             cnt_errr += 1
         except TypeError as e:
-            print(CONSOLE_RED+"Failed to retrieve data:Typeerror at convert.py"+CONSOLE_NORMAL)
+            print(CONSOLE_RED+"Failed to retrieve data:Type error at convert.py"+CONSOLE_NORMAL)
+            log += url + "\n" + str(e) + "\n"
             failed.append((url,ind,'convert_type'))
             cnt_errr += 1
         except:
             print(CONSOLE_RED+"Failed to retrieve data:Unknown Error"+CONSOLE_NORMAL)
             failed.append((url,ind,'unknown'))
             cnt_errr += 1
-idx = 0
-# sheet data link
-file_list = open("list.txt", "r")
-# http://textage.cc/score/titletbl.js
-link_basic = "http://textage.cc/score/"
-print(CONSOLE_BLUE+"Crawling "+str(len(data_diff))+" data..." + CONSOLE_NORMAL)
-itt=0
-for line in file_list.readlines():
-    print(CONSOLE_BLUE +"Song Progress: "+str(cnt) + "/"+str(len(data_diff))
-            + CONSOLE_GREEN +" Crawled: " + str(len(data))
-            + CONSOLE_GREEN + " Perfect: " + str(cnt_comp)
-            + CONSOLE_YELLOW +" Warning: " + str(cnt_warn)
-            + CONSOLE_RED +" Error: " + str(cnt_errr)
-            + CONSOLE_NORMAL)
-    cnt += 1
-    # itt+=1
-    # if itt<132:
-        # continue
-    title = line.split("'")
-    if len(title)<2:
-        continue
-    title = title[1]
-    series = line.split(",")[0].split("[")[1]
-     
-    url = link_basic + series + "/" + title + ".html"
-    if title in data_title:
-        diff = data_diff[data_title.index(title)]
-        print("Receiving from " + url + "...")
-        retrieve_data_advanced(url,diff)
-        time.sleep(random.random()/10+0.1)
-        print(CONSOLE_GREEN+"saving..."+CONSOLE_NORMAL)
-        np.save('rawdata.npy',np.array(data))
-        np.save('failed.npy',np.array(failed))
-        np.save('warning.npy',np.array(warning))
-print(CONSOLE_BLUE +"Song Progress: "+str(cnt) + "/"+str(len(data_diff))
-            + CONSOLE_GREEN +" Crawled: " + str(len(data))
-            + CONSOLE_GREEN + " Perfect: " + str(cnt_comp)
-            + CONSOLE_YELLOW +" Warning: " + str(cnt_warn)
-            + CONSOLE_RED +" Error: " + str(cnt_errr)
-            + CONSOLE_NORMAL)
-print("Finally saving...")
-np.save('rawdata.npy',np.array(data))
-np.save('failed.npy',np.array(failed))
-np.save('warning.npy',np.array(warning))
-file_list.close()
 
+def crawl_data():
+    global data, failed, warning
+    global cnt_comp, cnt_warn, cnt_errr, log
+    cnt = 0
+
+    # sheet data link
+    file_list = open("list.txt", "r")
+
+    file_length = sum(1 for line in file_list)
+    file_list.close()
+    file_list = open("list.txt", "r")
+    # http://textage.cc/score/titletbl.js
+    link_basic = "http://textage.cc/score/"
+    print(CONSOLE_BLUE+"Crawling "+str(file_length)+" data..." + CONSOLE_NORMAL)
+    for line in file_list.readlines():
+        print(CONSOLE_BLUE +"Progress: "+str(cnt) + "/"+str(file_length)
+                + CONSOLE_GREEN +" Crawled: " + str(len(data))
+                + CONSOLE_GREEN + " Perfect: " + str(cnt_comp)
+                + CONSOLE_YELLOW +" Warning: " + str(cnt_warn)
+                + CONSOLE_RED +" Error: " + str(cnt_errr)
+                + CONSOLE_NORMAL)
+        cnt += 1
+        title = line.split("'")
+        if len(title)<2:
+            continue
+        title = title[1]
+        series = line.split(",")[0].split("[")[1]
+         
+        url = link_basic + series + "/" + title + ".html"
+        if title in data_title:
+            diff = data_diff[data_title.index(title)]
+            print("Receiving from " + url + "...")
+            retrieve_data_advanced(url,diff)
+            time.sleep(random.random()/10+0.05)
+            if cnt%100==0:
+                print(CONSOLE_GREEN+"saving..."+CONSOLE_NORMAL)
+                np.save('rawdata.npy',np.array(data))
+                np.save('failed.npy',np.array(failed))
+                np.save('warning.npy',np.array(warning))
+    print(CONSOLE_BLUE +"Crawling Finish."
+                + CONSOLE_GREEN +" Crawled: " + str(len(data))
+                + CONSOLE_GREEN + " Perfect: " + str(cnt_comp)
+                + CONSOLE_YELLOW +" Warning: " + str(cnt_warn)
+                + CONSOLE_RED +" Error: " + str(cnt_errr)
+                + CONSOLE_NORMAL)
+    print("Finally saving...")
+    np.save('rawdata.npy',np.array(data))
+    np.save('failed.npy',np.array(failed))
+    np.save('warning.npy',np.array(warning))
+    with open("ErrorLog.txt","w") as error_log_file:
+        error_log_file.write(log)
+        error_log_file.close()
+    file_list.close()
+
+crawl_data()
