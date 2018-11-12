@@ -1,33 +1,15 @@
 import urllib3
 import js2py
+import numpy as np
+import time
 
+import convert
 # raw = http.request('GET', "http://textage.cc/score/25/aa_rebld.html")
 # raw = http.request('GET', "http://textage.cc/score/20/_ongaku.html")
 # raw = http.request('GET', "http://textage.cc/score/7/spooky.html")
 # raw = http.request('GET', "http://textage.cc/score/17/_valse17.html")
 # raw = http.request('GET', "http://textage.cc/score/25/anagma.html")
 
-# k = 1
-# l, m, g, a = 0
-# if k=0 > double...?
-# N > l = 1
-# A > a = 1
-# H 
-# if(char2=="X"){a=1;kuro=1;}
-# if(char2=="A")a=1;
-# if(char2=="L")l=1;
-# if(char2=="N"){l=1;hps=1;}
-# if(char2=="H")hps=1;
-# if(char2=="B"){l=1;g=1;}
-# if(char2=="G" || char2=="R"){l=1;hps=1;g=1;}
-# if(char2=="P"){l=1;hps=1;pty=1;g=1;}
-# if(char1=="1")sides[1]=1;
-# if(char1=="D"){k=0;key=14;}
-# if(char1=="L"){k=0;key=14;os=1;sides[1]=1;}
-# if(char1=="R"){k=0;key=14;os=2;}
-# if(char1=="F"){flp=1;k=0;key=14;}
-# if(char1=="M"){m=1;k=0;key=14;}
-# if(char1=="B"){db=1;key=14;}
 scr_init_a = """
 function ar(){let sp = new Array();let tc= new Array();let ln= new Array();let c1 = new Array();LNDEF=384;
 gap=0;k=1;l=0;a=1;"""
@@ -61,8 +43,8 @@ def receive_song_data(url, diff="a"):
     scr_end = """return [sp,tc,ln,c1,bpm,LNDEF,measure];}ar();"""
     return js2py.eval_js(scr+scr_end)
 
-r = "http://textage.cc/score/20/_ongaku.html"
-print(receive_song_data(r,"a"))
+r = "http://textage.cc/score/21/ancientl.html"
+# print(receive_song_data(r,"a"))
 # print(receive_song_data(r,"h"))
 # print(receive_song_data(r,"n"))
 
@@ -85,10 +67,12 @@ for line in file_diff.readlines():
     cur_diff[2] = diff[7] #SH
     cur_diff[3] = diff[9] #SA
     cur_diff[4] = diff[11] #SX
+    data_diff.append(cur_diff)
     # print(title, cur_diff)
 
 file_diff.close()
-
+idx = 0
+data = []
 # sheet data link
 file_list = open("list.txt", "r")
 # http://textage.cc/score/titletbl.js
@@ -99,10 +83,36 @@ for line in file_list.readlines():
         continue
     title = title[1]
     series = line.split(",")[0].split("[")[1]
-    
+     
     url = link_basic + series + "/" + title + ".html"
-    # print(receive_song_data(url,"a"))
-    # print(receive_song_data(url,"h"))
-    # print(receive_song_data(url,"n"))
+    if title in data_title:
+        diff = data_diff[data_title.index(title)]
+        print("Receiving from " + url + ", Difficulty Another...")
+        received_data = receive_song_data(url,"a")
+        if len(received_data[0])>0:
+            print(received_data)
+            converted_data = convert.convert_chart(received_data)
+            print("Data confirmed.")
+            data.append((converted_data,diff[3]))
+        """
+        time.sleep(1)
+        print("Receiving from " + url + ", Difficulty Hyper...")
+        received_data = receive_song_data(url,"h")
+        if len(received_data[0])>0:
+            print("Data confirmed.")
+            data.append((received_data,diff[2]))
+        time.sleep(1)
+        print("Receiving from " + url + ", Difficulty Normal...")
+        received_data = receive_song_data(url,"n")
+        if len(received_data[0])>0:
+            print("Data confirmed.")
+            data.append((received_data,diff[1]))
+        time.sleep(1)"""
+    idx += 1
+    if idx > 1:
+        break
+print(data)
+print("saving...")
+np.save('rawdata.npy',np.array(data))
 file_list.close()
 
